@@ -1,0 +1,14 @@
+name: Pull Request validation
+
+on: [pull_request]
+
+
+jobs:
+  TrustAnchor-contracts-ci:
+    name: Run TrustAnchor-contracts validation
+    uses: ./.github/workflows/TrustAnchor-contracts-ci.yaml
+
+  TrustAnchor-frontend-ci:
+    name: Run TrustAnchor-frontend validation
+    uses: ./.github/workflows/TrustAnchor-frontend-ci.yaml
+

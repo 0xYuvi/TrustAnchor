@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.vscode/**'
+      - '.idea/**'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  TrustAnchor-contracts-validate:
+    name: Run TrustAnchor-contracts release
+    secrets: inherit
+    uses: ./.github/workflows/TrustAnchor-contracts-ci.yaml
+
+  TrustAnchor-contracts-release:
+    name: Run TrustAnchor-contracts release
+    secrets: inherit
+    uses: ./.github/workflows/TrustAnchor-contracts-cd.yaml
+    needs: TrustAnchor-contracts-validate
+
+  TrustAnchor-frontend-validate:
+    name: Run TrustAnchor-frontend release
+    secrets: inherit
+    uses: ./.github/workflows/TrustAnchor-frontend-ci.yaml
+
+  TrustAnchor-frontend-release:
+    name: Run TrustAnchor-frontend release
+    secrets: inherit
+    uses: ./.github/workflows/TrustAnchor-frontend-cd.yaml
+    needs: TrustAnchor-frontend-validate
