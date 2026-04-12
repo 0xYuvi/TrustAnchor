@@ -1,0 +1,31 @@
+# TrustAnchor Backend - Production Dependencies
+
+# Core Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# x402 Payment Integration
+x402-avm[fastapi,avm]>=1.0.0
+
+# Algorand SDK
+py-algorand-sdk>=2.0.0
+
+# HTTP Client
+httpx>=0.26.0
+
+# Configuration
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+
+# Security (for key management)
+cryptography>=42.0.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+httpx>=0.26.0
+
+# Development
+black>=24.0.0
+isort>=5.13.0
+mypy>=1.8.0
