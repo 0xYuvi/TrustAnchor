@@ -53,10 +53,11 @@ class ZKPService:
         keys_dir: Optional[str] = None,
         http_prover_url: Optional[str] = None,
     ):
+        base_dir = Path(__file__).parent.parent.parent / "circuits"
         self.prove_binary_path = prove_binary_path or os.getenv(
-            "ZKP_PROVE_BINARY", "./prove"
+            "ZKP_PROVE_BINARY", str(base_dir / "prover")
         )
-        self.keys_dir = keys_dir or os.getenv("ZKP_KEYS_DIR", "./keys")
+        self.keys_dir = keys_dir or os.getenv("ZKP_KEYS_DIR", str(base_dir / "keys"))
         self.http_prover_url = http_prover_url or os.getenv("ZKP_HTTP_PROVER_URL")
         self._client: Optional[httpx.AsyncClient] = None
 

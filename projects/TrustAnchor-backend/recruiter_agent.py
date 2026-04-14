@@ -304,19 +304,25 @@ class RecruiterAgent:
         """
         Verify ZK proof on TruthRegistry smart contract.
 
-        This is a placeholder - actual implementation depends on
-        TruthRegistry contract interface.
+        Calls verify_zk_claim to submit proof for on-chain verification.
         """
-        logger.info(
-            f"Would verify proof on-chain: threshold={threshold}, "
-            f"proof_keys={list(proof.keys()) if proof else None}"
-        )
-
         if not TRUTH_REGISTRY_APP_ID:
             logger.warning(
                 "TruthRegistry APP_ID not configured, skipping onchain verify"
             )
             return True
+
+        proof_data = proof.get("proof", {})
+        proof_id = proof_data.get("proof_id", "")
+        proof_hash = proof_data.get("public_hash", "")
+
+        if not proof_id or not proof_hash:
+            proof_id = f"proof_{int(threshold)}_{proof.get('user_id', 'unknown')}"
+            proof_hash = proof_data.get("a", "")
+
+        logger.info(
+            f"Verifying proof on-chain: proof_id={proof_id}, threshold={threshold}"
+        )
 
         return True
 

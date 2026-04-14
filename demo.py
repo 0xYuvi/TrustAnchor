@@ -31,7 +31,7 @@ from typing import Optional
 
 import httpx
 from algosdk import encoding, kmd, transaction
-from algosdk.v2.client.algod import AlgodClient
+from algosdk.v2client.algod import AlgodClient
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -186,7 +186,7 @@ class ContractDeployer:
 
         teal_path = (
             Path(__file__).parent
-            / "projects/TrustAnchor-contracts/smart_contracts/identity_registry/approval.teal"
+            / "projects/TrustAnchor-contracts/smart_contracts/identity_registry/contract.py"
         )
 
         if teal_path.exists():
