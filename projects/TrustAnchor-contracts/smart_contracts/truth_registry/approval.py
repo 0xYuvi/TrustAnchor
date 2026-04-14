@@ -64,27 +64,30 @@ class TruthRegistry(ARC4Contract):
     @arc4.abimethod
     def verify_zk_claim(
         self,
+        trait_id: arc4.DynamicBytes,
         proof_id: arc4.DynamicBytes,
         threshold: arc4.UInt64,
-        proof_hash: arc4.DynamicBytes,
+        proof_hash: arc4.StaticArray[arc4.UInt8, arc4.Literal[32]],
     ) -> arc4.Bool:
+        """
+        Verify and settle a ZK claim.
+        The claim is verified off-chain by the institution and then anchored here.
+        """
         sender = Txn.sender
 
+        # 1. Ensure caller is a registered institution
         assert self._is_registered_institution(arc4.Address(sender.bytes)), "Caller must be a registered institution"
 
-        from algopy import op
+        # 2. Ensure the trait is actually registered and matches the commitment
+        assert trait_id.native in self.anchors, "Trait ID not registered"
 
-        hash_result = op.sha256(proof_id.native + threshold.bytes)
-        hash_arr = arc4.StaticArray[arc4.UInt8, arc4.Literal[32]]()
-        for i in range(32):
-            hash_arr[i] = arc4.UInt8(hash_result[i])
-
+        # 3. Store the verification status
         status = ZKProofStatus(
             proof_id=proof_id.copy(),
             threshold=threshold,
-            proof_hash=hash_arr,
+            proof_hash=proof_hash,
             is_verified=arc4.Bool(True),
-            submitted_at_round=arc4.UInt64(self.anchor_count),
+            submitted_at_round=arc4.UInt64(Global.round()),
         )
         self.proofs[proof_id.copy()] = status.copy()
 

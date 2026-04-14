@@ -151,8 +151,8 @@ class ZKPService:
             )
 
         keys_path = Path(self.keys_dir)
-        pk_path = keys_path / "pk.plonk.key"
-        vk_path = keys_path / "vk.plonk.key"
+        pk_path = keys_path / "pk.groth16.key"
+        vk_path = keys_path / "vk.groth16.key"
 
         if not pk_path.exists():
             return ZKProofResult(
@@ -163,14 +163,13 @@ class ZKPService:
         try:
             cmd = [
                 str(binary_path),
+                "prove",
                 "--secret",
                 str(secret_value),
                 "--threshold",
                 str(threshold),
                 "--pk",
                 str(pk_path),
-                "--output",
-                "/dev/stdout",
             ]
 
             result = await asyncio.create_subprocess_exec(
@@ -183,12 +182,17 @@ class ZKPService:
 
             if result.returncode != 0:
                 logger.error(f"Prove binary failed: {stderr.decode()}")
+                logger.error(f"Stdout: {stdout.decode()[:500]}")
                 return ZKProofResult(
                     valid=False,
                     error=f"Proof generation failed: {stderr.decode()}",
                 )
 
-            proof_data = json.loads(stdout.decode())
+            import re
+
+            output = stdout.decode()
+            output = re.sub(r"\x1b\[[0-9;]*m", "", output)
+            proof_data = json.loads(output)
 
             return ZKProofResult(
                 valid=True,
