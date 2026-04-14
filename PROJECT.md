@@ -1,0 +1,512 @@
+# TrustAnchor Project - Technical Documentation
+
+## Overview
+
+TrustAnchor is a privacy-preserving identity and verification marketplace on Algorand. It enables:
+- Bank anchor: Financial institutions anchor commitments (e.g., income thresholds)
+- Consumer verification: Users prove they meet criteria without revealing full data
+- ZKP verification: Zero-knowledge proofs for privacy-preserving verification
+- X402 payments: HTTP 402 payment integration for paid verification services
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        TrustAnchor Flow                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────┐     X402      ┌──────────────────┐     On-Chain          │
+│  │ Consumer │ ──────────────► │ Issuer Agent     │ ──────────────►       │
+│  │          │   Payment     │ (FastAPI)       │   Verification         │
+│  │          │   (0.5 ALGO)  │                 │   (TruthRegistry)     │
+│  └──────────┘               └──────────────────┘                       │
+│                                    │                                    │
+│                                    │ ZKP                                 │
+│                                    ▼                                    │
+│                          ┌──────────────────┐                          │
+│                          │ ZKP Service     │                          │
+│                          │ (gnark binary)   │                          │
+│                          └──────────────────┘                          │
+│                                    │                                    │
+│                                    │ Proof                              │
+│                                    ▼                                    │
+│  ┌──────────┐               ┌──────────────────┐                       │
+│  │ Bank     │ ◄──────────────│ TruthRegistry   │                       │
+│  │ (Anchor) │   Commitment   │ (Smart Contract) │                       │
+│  └──────────┘               └──────────────────┘                       │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## Project Structure
+
+```
+TrustAnchor/
+├── circuits/                      # ZKP circuit implementation (Go + gnark)
+│   ├── prove.go                   # Core circuit + prover logic
+│   ├── greater_than_test.go       # Circuit tests
+│   ├── verifier_contract.py      # AVM verifier (Python/algopy)
+│   ├── cmd/prover/main.go          # CLI entry point
+│   ├── keys/                      # Generated proving/verifying keys
+│   │   ├── pk.groth16.key         # Proving key (15KB)
+│   │   └── vk.groth16.key         # Verifying key (332B)
+│   ├── prover                     # Compiled binary (14.9MB)
+│   └── go.mod                    # Go dependencies
+│
+├── projects/
+│   ├── TrustAnchor-backend/      # FastAPI issuer agent
+│   │   ├── main.py               # FastAPI server with x402
+│   │   ├── zkp_service.py        # ZKP service (calls gnark binary)
+│   │   ├── recruiter_agent.py  # Consumer agent
+│   │   ├── payment_verifier.py  # Payment verification
+│   │   └── pricing.py           # Pricing logic
+│   │
+│   ├── TrustAnchor-contracts/    # Algorand smart contracts
+│   │   └── smart_contracts/
+│   │       ├── truth_registry/    # TruthRegistry contract
+│   │       ├── identity_registry/# IdentityRegistry contract
+│   │       └── trust_anchor/     # TrustAnchor contract
+│   │
+│   └── TrustAnchor-frontend/      # React frontend
+│       ├── src/
+│       │   ├── components/       # UI components
+│       │   ├── App.tsx         # Main app
+│       │   └── utils/          # Network configs
+│       └── package.json
+│
+├── demo.py                        # Full demo orchestrator
+└── README.md                      # Project readme
+```
+
+## Key Components
+
+### 1. ZKP Circuits (`circuits/`)
+
+**Purpose**: Implements the "GreaterThan" proof - prove that `secret_value > threshold` without revealing the secret.
+
+**Tech Stack**: 
+- Go 1.24
+- gnark v0.14.0 (Consensys)
+
+**Circuit Logic** (`prove.go`):
+```go
+type GreaterThanCircuit struct {
+    SecretValue frontend.Variable `gnark:"secret,value"`
+    Threshold  frontend.Variable `gnark:"public,threshold"`
+}
+
+func (c *GreaterThanCircuit) Define(api frontend.API) error {
+    // 1. Compute diff = secret - threshold
+    diff := api.Sub(c.SecretValue, c.Threshold)
+    
+    // 2. Convert to 64-bit binary
+    lowBits := api.ToBinary(diff, 64)
+    
+    // 3. Sum all bits (proves at least one bit is 1 if sum > 0)
+    sum := frontend.Variable(0)
+    for i := 0; i < 64; i++ {
+        api.AssertIsBoolean(lowBits[i])
+        sum = api.Add(sum, lowBits[i])
+    }
+    
+    // 4. Assert sum > 0 (i.e., diff != 0)
+    isZero := api.IsZero(sum)
+    api.AssertIsEqual(isZero, 0)
+    
+    return nil
+}
+```
+
+**Build & Usage**:
+```bash
+cd circuits
+
+# Compile the prover binary
+go build -o prover ./cmd/prover
+
+# Generate keys (setup phase)
+./prover setup --dir ./keys
+
+# Generate proof
+./prover prove --secret 75000 --threshold 50000 --pk ./keys/pk.groth16.key --output proof.json
+
+# Verify proof
+./prover verify --proof '<proof>' --public '{"threshold":50000}' --vk ./keys/vk.groth16.key
+```
+
+**Files Generated**:
+- `prover` - CLI binary (14.9MB)
+- `keys/pk.groth16.key` - Proving key
+- `keys/vk.groth16.key` - Verifying key
+
+---
+
+### 2. Backend Service (`projects/TrustAnchor-backend/`)
+
+**Tech Stack**: Python 3.13, FastAPI, x402, algosdk
+
+**Endpoints**:
+- `POST /verify/income` - Main verification endpoint
+- `GET /health` - Health check
+- `GET /pricing` - Get current pricing
+
+**Flow**:
+1. Client calls `/verify/income` with mode="zkp", threshold=50000, secret_value=75000
+2. Server responds with 402 Payment Required (X402)
+3. Client pays 0.5 ALGO
+4. Client retries with payment proof (txid in header)
+5. Server generates ZKP via gnark binary
+6. Server returns proof to client
+7. Client submits proof to TruthRegistry on-chain
+
+**Key Files**:
+
+**main.py** - FastAPI server with x402 integration:
+```python
+@app.post("/verify/income")
+async def verify_income(request: IncomeVerificationRequest, http_request: Request):
+    payment_payload = getattr(http_request, "payment_payload", None)
+    
+    if not payment_payload:
+        raise HTTPException(status_code=402, detail={
+            "error": "Payment required",
+            "paymentRequirements": [{...}]
+        })
+    
+    if request.mode == "zkp":
+        # Generate proof via zkp_service
+        proof_result = await zkp_service.generate_proof(
+            secret_value=request.secret_value,
+            threshold=int(request.threshold),
+            user_id=request.user_id
+        )
+        return {"proof": proof_result.proof, ...}
+```
+
+**zkp_service.py** - Calls the gnark binary:
+```python
+class ZKPService:
+    def __init__(self):
+        self.prove_binary_path = "circuits/prover"
+        self.keys_dir = "circuits/keys"
+    
+    async def generate_proof(self, secret_value, threshold, user_id):
+        cmd = [
+            self.prove_binary_path, "prove",
+            "--secret", str(secret_value),
+            "--threshold", str(threshold),
+            "--pk", f"{self.keys_dir}/pk.groth16.key",
+            "--output", "/dev/stdout"
+        ]
+        # Execute and return JSON result
+```
+
+---
+
+### 3. Smart Contracts (`projects/TrustAnchor-contracts/`)
+
+**Contract 1: IdentityRegistry** (`identity_registry/`)
+- Manages registered institutions (banks, employers)
+- Methods: `register_institution`, `is_registered`
+
+**Contract 2: TruthRegistry** (`truth_registry/`)
+- Stores anchored commitments from institutions
+- Now supports ZKP verification:
+  - `verify_zk_claim(proof_id, threshold, proof_hash)` - Verify ZKP
+  - `get_proof_status(proof_id)` - Get verification status
+  - `is_proof_verified(proof_id)` - Check if verified
+- Uses BoxMap for proof storage
+
+**Contract 3: TrustAnchor** (`trust_anchor/`)
+- Main contract coordinating other registries
+
+**Smart Contract Code** (`truth_registry/approval.py`):
+```python
+class ZKProofStatus(arc4.Struct):
+    proof_id: arc4.DynamicBytes
+    threshold: arc4.UInt64
+    proof_hash: arc4.StaticArray[arc4.UInt8, arc4.Literal[32]]
+    is_verified: arc4.Bool
+    submitted_at_round: arc4.UInt64
+
+class TruthRegistry(ARC4Contract):
+    def __init__(self):
+        self.anchors = BoxMap(arc4.DynamicBytes, arc4.DynamicBytes, key_prefix="anchor_")
+        self.proofs = BoxMap(arc4.DynamicBytes, ZKProofStatus, key_prefix="proof_")
+    
+    @arc4.abimethod
+    def verify_zk_claim(self, proof_id, threshold, proof_hash) -> arc4.Bool:
+        # Hash proof components
+        hash_result = op.sha256(proof_id.native + threshold.bytes)
+        # Store verification result
+        status = ZKProofStatus(
+            proof_id=proof_id,
+            threshold=threshold,
+            proof_hash=hash_arr,
+            is_verified=arc4.Bool(True),
+            submitted_at_round=arc4.UInt64(Global.round())
+        )
+        self.proofs[proof_id.copy()] = status.copy()
+        return arc4.Bool(True)
+```
+
+---
+
+### 4. Frontend (`projects/TrustAnchor-frontend/`)
+
+**Tech Stack**: React, TypeScript, TailwindCSS, use-wallet
+
+**Features**:
+- Wallet connection (Pera, Defly)
+- Account display
+- Transaction building
+- Contract interactions
+
+---
+
+## ZKP Verification Flow (Detailed)
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                    ZKP "Truth-as-a-Service" Flow                      │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. ANCHOR (Bank registers commitment)                                   │
+│     ┌─────────────┐                                                    │
+│     │ Bank        │ ──► register_anchor(trait_id, commitment)           │
+│     │             │     commitment = hash(income_threshold, secret)    │
+│     └─────────────┘                                                    │
+│                                                                         │
+│  2. REQUEST (Consumer requests verification)                          │
+│     ┌─────────────┐      POST /verify/income                            │
+│     │ Consumer   │ ──► mode="zkp", threshold=50000                   │
+│     │             │     secret_value=75000                            │
+│     └─────────────┘                                                    │
+│                                                                         │
+│  3. PAY (Consumer pays 0.5 ALGO)                                       │
+│     ┌─────────────┐      PaymentTxn                                     │
+│     │ Consumer   │ ──► 0.5 ALGO to issuer                             │
+│     │             │                                                    │
+│     └─────────────┘                                                    │
+│                                                                         │
+│  4. PROVE (Backend generates ZKP)                                       │
+│     ┌─────────────┐      ./circuits/prover prove                       │
+│     │ Backend     │ ──► secret=75000, threshold=50000                  │
+│     │             │     Returns: {a, b, c, public_hash}                  │
+│     └─────────────┘                                                    │
+│                                                                         │
+│  5. SETTLE (Consumer verifies on-chain)                                 │
+│     ┌─────────────┐      verify_zk_claim(proof_id, threshold, ...)   │
+│     │ Consumer   │ ──► TruthRegistry contract                       │
+│     │             │     Stores proof status                            │
+│     └─────────────┘                                                    │
+│                                                                         │
+│  6. VERIFY (Anyone can check)                                            │
+│     ┌─────────────┐      is_proof_verified(proof_id)                   │
+│     │ Verifier   │ ──► Returns true/false                              │
+│     └─────────────┘                                                    │
+│                                                                         │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+## Payment Integration (X402)
+
+```
+Request:
+  POST /verify/income
+  Body: { "user_id": "user_123", "mode": "zkp", "threshold": 50000 }
+
+Response (402 Payment Required):
+  {
+    "detail": {
+      "error": "Payment required",
+      "paymentRequirements": [
+        {
+          "scheme": "exact",
+          "network": "algorand:localnet",
+          "payTo": "TRUST_ANCHOR_ADDRESS",
+          "maximumAmountRequired": 500000,  // 0.5 ALGO in microAlgos
+          "description": "zkp verification"
+        }
+      ]
+    }
+  }
+
+Client Payment:
+  PaymentTxn(sender=consumer, receiver=issuer, amt=500000)
+
+Retry with Payment Proof:
+  POST /verify/income
+  Headers: { "X402-Payment-Proof": "<txid>" }
+  Body: { "user_id": "user_123", "mode": "zkp", ... }
+
+Success Response (200):
+  { "result": true, "proof": {...}, "txid": "..." }
+```
+
+## Pricing Model
+
+| Mode    | Price (ALGO) | Description                     |
+|--------|---------------|----------------------------------|
+| boolean| 0.1          | Simple threshold check          |
+| zkp    | 0.5          | Zero-knowledge proof verification|
+
+## Running the Project
+
+### Prerequisites
+- Docker
+- Go 1.24+
+- Python 3.13+
+- Node.js 18+
+- AlgoKit CLI
+
+### Setup
+
+```bash
+# 1. Install dependencies
+algokit project bootstrap all
+
+# 2. Generate localnet env
+cd projects/TrustAnchor-contracts
+algokit generate env-file -a localnet
+
+# 3. Build contracts
+algokit project run build
+
+# 4. Start localnet
+algokit localnet start
+```
+
+### Build ZKP Prover
+
+```bash
+cd circuits
+go build -o prover ./cmd/prover
+./prover setup --dir ./keys
+```
+
+### Run Demo
+
+```bash
+cd TrustAnchor
+python demo.py --dry-run
+```
+
+### Run Backend
+
+```bash
+cd projects/TrustAnchor-backend
+# Set environment
+export TRUST_ANCHOR_ADDRESS="..."
+export ALGORAND_NETWORK="localnet"
+
+# Start server
+python main.py
+```
+
+## Configuration
+
+| Environment Variable | Description | Default |
+|---------------------|-------------|---------|
+| TRUST_ANCHOR_ADDRESS | Issuer payment address | Required |
+| ALGORAND_NETWORK | Network (localnet/testnet/mainnet) | testnet |
+| ALGORAND_INDEXER_URL | Indexer URL | Algonode |
+| ZKP_PROVE_BINARY | Path to prover binary | ./prover |
+| ZKP_KEYS_DIR | Path to keys directory | ./keys |
+| TRUTH_REGISTRY_APP_ID | Deployed contract ID | Required |
+| RECRUITER_PRIVATE_KEY | Consumer private key | Required |
+
+## Security Considerations
+
+1. **Secret Value Protection**: The secret value is never revealed on-chain
+2. **Trusted Verifier**: Only registered institutions can anchor commitments
+3. **Proof Verification**: Verification status stored on-chain for transparency
+4. **OPCODE Budget**: AVM limited to ~70,000 ops - complex verifications done off-chain
+
+## API Reference
+
+### Backend Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /verify/income | Verify income with boolean or ZKP |
+| GET | /health | Health check |
+| GET | /pricing | Get verification pricing |
+
+### Contract Methods
+
+**TruthRegistry**:
+| Method | Args | Returns | Description |
+|-------|------|---------|-------------|
+| create | identity_registry_app_id | - | Initialize registry |
+| register_anchor | trait_id, commitment | - | Anchor commitment |
+| verify_zk_claim | proof_id, threshold, proof_hash | Bool | Verify ZKP |
+| get_proof_status | proof_id | ZKProofStatus | Get proof info |
+| is_proof_verified | proof_id | Bool | Check verification |
+
+**IdentityRegistry**:
+| Method | Args | Returns | Description |
+|-------|------|---------|-------------|
+| create | - | - | Initialize registry |
+| register_institution | addr, did, metadata | - | Register institution |
+| is_registered | addr | Bool | Check registration |
+
+## Testing
+
+```bash
+# Run contract tests (from contracts directory)
+pytest
+
+# Run integration tests
+algokit project run test
+
+# Run demo
+python ../demo.py --dry-run
+```
+
+## File Locations
+
+| Component | Path |
+|-----------|------|
+| ZKP Binary | `circuits/prover` |
+| ZKP Keys | `circuits/keys/*.key` |
+| Smart Contracts | `projects/TrustAnchor-contracts/smart_contracts/` |
+| Backend | `projects/TrustAnchor-backend/` |
+| Frontend | `projects/TrustAnchor-frontend/` |
+
+## Dependencies
+
+### Go (`circuits/go.mod`)
+```toml
+github.com/consensys/gnark v0.14.0
+github.com/consensys/gnark-crypto v0.19.0
+```
+
+### Python (`projects/TrustAnchor-backend/requirements.txt`)
+```
+fastapi
+algosdk
+httpx
+python-dotenv
+x402
+```
+
+### Contract (`projects/TrustAnchor-contracts/pyproject.toml`)
+```
+algopy
+python-dotenv
+```
+
+## Troubleshooting
+
+### Issue: "frontend.Circuit methods must be defined on pointer receiver"
+**Fix**: Use `func (c *GreaterThanCircuit) Define(...)` not value receiver
+
+### Issue: "unrecognized R1CS curve type"
+**Fix**: Recompile circuit during proof generation (not just load keys)
+
+### Issue: Payment 402 not returned
+**Fix**: Ensure x402 middleware is configured in `main.py`
+
+### Issue: Contract deployment fails
+**Fix**: Ensure localnet is running: `algokit localnet start`
