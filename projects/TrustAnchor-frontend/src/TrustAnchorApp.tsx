@@ -233,9 +233,12 @@ const TrustAnchorApp: React.FC = () => {
     setLoading(true)
     setError('')
     try {
-      const resp = await fetch(`${BACKEND_URL}/inquiry/status/${code}`)
-      if (!resp.ok) throw new Error('Invalid inquiry code')
-      const data = await resp.json()
+      const response = await fetch(`${BACKEND_URL}/inquiry/status/${code}`)
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail?.error || errData.detail || 'Inquiry issuance failed');
+      }
+      const data = await response.json()
       setActiveInquiry(data)
       setThreshold(data.threshold)
       setVerificationMode(data.mode)
@@ -267,7 +270,10 @@ const TrustAnchorApp: React.FC = () => {
         })
       })
 
-      if (!genResp.ok) throw new Error('Proof generation failed')
+      if (!genResp.ok) {
+        const errData = await genResp.json();
+        throw new Error(errData.detail || 'Proof generation failed');
+      }
       const proofData = await genResp.json()
 
       const fulfillResp = await fetch(`${BACKEND_URL}/inquiry/fulfill/${activeInquiry.id}`, {
