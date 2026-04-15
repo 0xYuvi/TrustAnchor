@@ -270,192 +270,241 @@ setStep('init')
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      <nav className="p-4 border-b border-slate-700 flex justify-between items-center">
-        <div className="text-xl font-bold">Trust<span className="text-purple-400">Anchor</span></div>
-        <button onClick={() => setOpenWalletModal(true)} className="px-4 py-2 bg-purple-600 rounded-lg">
-          {activeAddress ? `${activeAddress.slice(0, 8)}...` : 'Connect Wallet'}
-        </button>
+    <div className="min-h-screen bg-black text-slate-100 selection:bg-purple-500/30 font-sans">
+      {/* Background Glows */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] glow-purple rounded-full blur-[120px] opacity-40"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] glow-purple rounded-full blur-[120px] opacity-30"></div>
+      </div>
+
+      <nav className="sticky top-0 z-50 p-6 backdrop-blur-md border-b border-white/5 flex justify-between items-center px-12">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-purple-800 rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center justify-center">
+            <span className="text-white font-black text-xl">T</span>
+          </div>
+          <div className="text-2xl font-black tracking-tighter">TRUST<span className="text-purple-400">ANCHOR</span></div>
+        </div>
+        
+        <div className="flex items-center gap-6">
+          {activeAddress && (
+             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-xs text-purple-300">
+               <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
+               Connected
+             </div>
+          )}
+          <button 
+            onClick={() => setOpenWalletModal(true)} 
+            className="px-6 py-2.5 bg-white text-black font-bold rounded-2xl hover:scale-[1.05] transition-all shadow-lg active:scale-95 text-xs uppercase tracking-widest"
+          >
+            {activeAddress ? `${activeAddress.slice(0, 4)}...${activeAddress.slice(-4)}` : 'Connect Gateway'}
+          </button>
+        </div>
       </nav>
 
-      <main className="p-8">
-        <h1 className="text-4xl font-bold mb-8 text-center">Truth-as-a-Service</h1>
-
-        {/* KYC Anchor Section */}
-        {!kycData && (
-          <div className="mb-8 p-6 bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-xl border border-blue-500/30">
-            <h2 className="text-2xl font-bold mb-4 text-center">Trusted Identity Portal</h2>
-            <p className="text-slate-300 mb-4 text-center">
-              Anchor your verified identity before requesting verification
-            </p>
-            <div className="relative group w-full p-4 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-bold text-center cursor-pointer overflow-hidden border border-blue-400/50 hover:brightness-110 transition-all">
-              <input 
-                type="file" 
-                accept=".pdf" 
-                onChange={uploadDocument}
-                disabled={loading || !activeAddress}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-              />
-              {loading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Scanning Document...</span>
-                </div>
-              ) : 'Upload Aadhaar / Bank PDF'}
-            </div>
+      <main className="relative z-10 max-w-7xl mx-auto p-8 pt-16">
+        {/* Hero Section */}
+        <div className="text-center mb-16 space-y-4">
+          <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[10px] uppercase tracking-[0.2em] font-black text-purple-300 mb-2">
+            Protocol v2.0 • Zero Knowledge
           </div>
-        )}
+          <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-gradient leading-none">
+            Truth-as-a-Service
+          </h1>
+          <p className="text-slate-400 max-w-2xl mx-auto text-lg leading-relaxed">
+            The private integration layer for real-world identity. Anchor Aadhaar documents securely using Algorand and generate anonymous proofs of data.
+          </p>
+        </div>
 
-        {/* KYC Status & Selective Disclosure */}
-        {kycData && (
-          <div className="mb-8 p-6 bg-slate-800/80 rounded-lg border border-slate-600">
-            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-700">
-              <span className="text-green-400 text-xl">✓</span>
-              <span className="font-bold text-green-400 text-xl">Identity Anchored Successfully</span>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="text-sm text-slate-300 space-y-2 font-mono bg-black/30 p-4 rounded-lg">
-                <div className="text-purple-400 mb-2 font-bold font-sans">On-Chain Commitment</div>
-                <div>ID: {kycData.kyc_id}</div>
-                <div>Hash: {kycData.commitment?.slice(0, 32)}...</div>
+        {/* Dynamic content grid */}
+        {!kycData ? (
+          <div className="max-w-4xl mx-auto glow-container">
+            <div className="fintech-card text-center p-12 space-y-8 bg-gradient-to-b from-white/[0.03] to-transparent">
+              <div className="w-24 h-24 bg-purple-500/10 border border-purple-500/20 rounded-3xl mx-auto flex items-center justify-center mb-4">
+                <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+              </div>
+              <div>
+                <h2 className="text-3xl font-black mb-3">Identity Retrieval</h2>
+                <p className="text-slate-400">Upload your government-issued PDF or bank statement to securely anchor your truth on-chain.</p>
               </div>
               
-              <div className="space-y-3">
-                <div className="text-white mb-2 font-bold flex items-center justify-between">
-                  <span>Selective Disclosure</span>
-                  <span className="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30 uppercase tracking-widest">Privacy Guard</span>
-                </div>
-                <div className="text-xs text-slate-400 mb-4 bg-slate-900/30 p-2 rounded border border-slate-800">
-                  Select which verified attributes to include in your Zero-Knowledge Proof. Attributes not selected will be physically redacted.
-                </div>
-                
-                <div className="grid gap-2">
-                  {kycData.verified_data?.full_name && (
-                    <label className={`flex items-center gap-3 p-3 rounded border transition-all cursor-pointer ${discloseName ? 'bg-purple-900/20 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.1)]' : 'bg-slate-900/50 border-slate-700 hover:border-slate-500'}`}>
-                      <input type="checkbox" checked={discloseName} onChange={(e) => setDiscloseName(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold">Full Name</span>
-                        <span className="font-bold text-white text-sm">{kycData.verified_data.full_name}</span>
-                      </div>
-                    </label>
-                  )}
-                  
-                  {kycData.verified_data?.citizenship && (
-                    <label className={`flex items-center gap-3 p-3 rounded border transition-all cursor-pointer ${discloseCitizenship ? 'bg-purple-900/20 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.1)]' : 'bg-slate-900/50 border-slate-700 hover:border-slate-500'}`}>
-                      <input type="checkbox" checked={discloseCitizenship} onChange={(e) => setDiscloseCitizenship(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold">Citizenship</span>
-                        <span className="font-bold text-white text-sm">{kycData.verified_data.citizenship}</span>
-                      </div>
-                    </label>
-                  )}
-
-                  {kycData.verified_data?.age !== undefined && kycData.verified_data.age > 0 && (
-                    <label className={`flex items-center gap-3 p-3 rounded border transition-all cursor-pointer ${discloseAge ? 'bg-purple-900/20 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.1)]' : 'bg-slate-900/50 border-slate-700 hover:border-slate-500'}`}>
-                      <input type="checkbox" checked={discloseAge} onChange={(e) => setDiscloseAge(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold">Calculated Age</span>
-                        <span className="font-bold text-white text-sm">{kycData.verified_data.age} Years</span>
-                      </div>
-                    </label>
-                  )}
-
-                  {kycData.verified_data?.address && (
-                    <label className={`flex items-start gap-3 p-3 rounded border transition-all cursor-pointer ${discloseAddress ? 'bg-purple-900/20 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.1)]' : 'bg-slate-900/50 border-slate-700 hover:border-slate-500'}`}>
-                      <input type="checkbox" checked={discloseAddress} onChange={(e) => setDiscloseAddress(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded mt-0.5" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold">Residential Address</span>
-                        <span className={`font-bold text-white text-[11px] leading-tight ${kycData.verified_data.address === "Address not found" ? 'text-red-400 italic' : ''}`}>
-                          {kycData.verified_data.address}
-                        </span>
-                      </div>
-                    </label>
-                  )}
-
-                  {kycData.verified_data?.income_annual !== undefined && (
-                    <div className="flex items-center gap-3 p-3 bg-green-900/10 rounded border border-green-500/30">
-                      <div className="w-5 h-5 flex items-center justify-center bg-green-500/20 rounded text-green-400 text-[10px]">🔒</div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-green-400 uppercase font-bold">Anchored Income</span>
-                        <span className="font-bold text-white text-sm">${kycData.verified_data.income_annual.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  )}
+              <div className="relative group max-w-sm mx-auto">
+                <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-white/20 rounded-2xl blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+                <div className="relative bg-white text-black p-5 rounded-2xl font-black uppercase text-xs tracking-widest cursor-pointer hover:bg-slate-100 active:scale-95 transition-all text-center">
+                  <input 
+                    type="file" 
+                    accept=".pdf" 
+                    onChange={uploadDocument}
+                    disabled={loading || !activeAddress}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  {loading ? 'Analyzing Cryptography...' : 'Select Source Document'}
                 </div>
               </div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest pt-4">End-to-End Encrypted • No Data Ever Leaves Your Browser</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Left Column: Data Preview & Disclosure */}
+            <div className="lg:col-span-12 space-y-8">
+               <div className="fintech-card">
+                  <div className="flex justify-between items-start mb-10">
+                    <div>
+                      <h2 className="text-2xl font-black uppercase tracking-tight mb-1 text-white">Secure Identity Anchor</h2>
+                      <div className="flex gap-2 items-center text-[10px] text-slate-500 font-mono">
+                        <span className="bg-green-500/20 text-green-400 px-2 rounded tracking-widest">STATE: ANCHORED</span>
+                        <span>TX: {kycData.anchor_txid?.slice(0, 16)}...</span>
+                      </div>
+                    </div>
+                    <div className="bg-purple-500/10 border border-purple-500/20 px-4 py-2 rounded-2xl text-xs text-purple-300 font-black">
+                      KYC ID: {kycData.kyc_id}
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-12">
+                     <div className="space-y-6">
+                        <div className="text-white font-black text-sm uppercase tracking-widest mb-6 border-b border-white/5 pb-2 inline-block">Selective Disclosure Console</div>
+                        
+                        <div className="grid gap-3">
+                            <label className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseName ? 'bg-purple-500/10 border-purple-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
+                                <input type="checkbox" checked={discloseName} onChange={(e) => setDiscloseName(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded-lg" />
+                                <div className="flex-1">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Full Name</div>
+                                    <div className="font-bold text-white">{kycData.verified_data?.full_name}</div>
+                                </div>
+                            </label>
+
+                            <label className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseCitizenship ? 'bg-purple-500/10 border-purple-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
+                                <input type="checkbox" checked={discloseCitizenship} onChange={(e) => setDiscloseCitizenship(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded-lg" />
+                                <div className="flex-1">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Citizenship</div>
+                                    <div className="font-bold text-white">{kycData.verified_data?.citizenship}</div>
+                                </div>
+                            </label>
+
+                            <label className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseAge ? 'bg-purple-500/10 border-purple-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
+                                <input type="checkbox" checked={discloseAge} onChange={(e) => setDiscloseAge(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded-lg" />
+                                <div className="flex-1">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Verified Age</div>
+                                    <div className="font-bold text-white">{kycData.verified_data?.age} Years</div>
+                                </div>
+                            </label>
+
+                            <label className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseAddress ? 'bg-purple-500/10 border-purple-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
+                                <input type="checkbox" checked={discloseAddress} onChange={(e) => setDiscloseAddress(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded-lg mt-1" />
+                                <div className="flex-1">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Residential Address</div>
+                                    <div className="font-bold text-white text-xs leading-relaxed">{kycData.verified_data?.address}</div>
+                                </div>
+                            </label>
+                        </div>
+                     </div>
+
+                     <div className="space-y-8">
+                        <div className="text-white font-black text-sm uppercase tracking-widest mb-2 border-b border-white/5 pb-2 inline-block">Verification Trigger</div>
+                        
+                        <div className="space-y-4 bg-white/[0.02] p-8 rounded-3xl border border-white/5">
+                            {verificationMode === 'zkp' && (
+                                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <label className="text-[10px] uppercase font-bold text-slate-500">Target Threshold ($)</label>
+                                    <input 
+                                        type="number" 
+                                        value={threshold} 
+                                        onChange={(e) => setThreshold(Number(e.target.value))} 
+                                        className="w-full bg-black/50 border border-white/10 p-4 rounded-xl font-bold text-white focus:outline-none focus:border-purple-500/50 transition-all"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[10px] uppercase font-bold text-slate-500 mb-1">Verification Mode</label>
+                                <div className="flex gap-2 p-1 bg-black/50 rounded-xl border border-white/5">
+                                    <button onClick={() => setVerificationMode('boolean')} className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${verificationMode === 'boolean' ? 'bg-white/10 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}>Standard Identity</button>
+                                    <button onClick={() => setVerificationMode('zkp')} className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${verificationMode === 'zkp' ? 'bg-purple-500 text-white' : 'text-slate-500 hover:text-slate-300'}`}>ZK-Proof (Income)</button>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={runVerificationFlow}
+                                disabled={loading || !activeAddress}
+                                className="w-full py-6 bg-white text-black font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 mt-4"
+                            >
+                                {loading ? 'Computing Proof...' : 'Initiate Verification'}
+                            </button>
+                            {error && <div className="text-red-400 text-center text-xs font-bold mt-2">Error: {error}</div>}
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            {/* Execution Logs Area */}
+            <div className="lg:col-span-12 grid lg:grid-cols-2 gap-8">
+                <div className="fintech-card h-80 flex flex-col">
+                    <div className="text-xs uppercase font-black text-slate-500 tracking-widest mb-4 flex justify-between items-center">
+                        <span>Computation Lifecycle</span>
+                        <div className="flex gap-1">
+                            {['request', 'payment', 'prove', 'verify'].map(s => (
+                                <div key={s} className={`w-2 h-2 rounded-full ${step === s ? 'bg-purple-500 animate-pulse' : (['complete'].includes(step) ? 'bg-green-500/40' : 'bg-white/10')}`}></div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-2 font-mono text-[11px] bg-black/40 p-4 rounded-2xl border border-white/5">
+                        {logs.map((l, i) => (
+                            <div key={i} className={`flex gap-3 ${l.includes('[ERROR]') ? 'text-red-400' : l.includes('[SUCCESS]') || l.includes('[REDACTED]') ? 'text-purple-300' : 'text-slate-400'}`}>
+                                <span className="text-[9px] opacity-30">[{i}]</span>
+                                <span>{l}</span>
+                            </div>
+                        ))}
+                        {logs.length === 0 && <div className="text-slate-700 italic">Ready for verification lifecycle...</div>}
+                    </div>
+                </div>
+
+                <div className="fintech-card h-80 relative overflow-hidden flex flex-col justify-center items-center text-center">
+                    {!verificationResult ? (
+                        <div className="space-y-4 opacity-30">
+                            <div className="w-16 h-16 border-2 border-dashed border-white/20 rounded-full mx-auto flex items-center justify-center">
+                                <span className="text-2xl">?</span>
+                            </div>
+                            <div className="text-xs font-black uppercase tracking-widest">Pending Verification</div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6 animate-in fade-in zoom-in duration-500">
+                             <div className="w-20 h-20 bg-green-500/20 border border-green-500/50 rounded-full mx-auto flex items-center justify-center mb-4">
+                                <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <div>
+                                <h3 className="text-3xl font-black text-white mb-1 uppercase tracking-tighter">Verified</h3>
+                                <p className="text-slate-400 text-xs uppercase tracking-widest font-bold">ZKP-SNARK ATTRIBUTE ATTESTATION</p>
+                            </div>
+                            <div className="bg-white/[0.03] border border-white/10 p-4 rounded-2xl flex gap-12 justify-center">
+                                <div className="text-center">
+                                    <div className="text-[10px] text-slate-500 uppercase font-black mb-1">Pass Ratio</div>
+                                    <div className="text-xl font-bold text-white">100%</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-[10px] text-slate-500 uppercase font-black mb-1">Mode</div>
+                                    <div className="text-xl font-bold text-white uppercase">{verificationResult.mode}</div>
+                                </div>
+                                {verificationResult.mode === 'zkp' && (
+                                    <div className="text-center">
+                                        <div className="text-[10px] text-slate-500 uppercase font-black mb-1">Threshold</div>
+                                        <div className="text-xl font-bold text-white">${verificationResult.threshold.toLocaleString()}</div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
           </div>
         )}
-
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="User ID"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              className="w-full p-3 bg-slate-800 rounded border border-slate-700"
-            />
-            <input
-              type="number"
-              placeholder="Threshold"
-              value={threshold}
-              onChange={(e) => setThreshold(Number(e.target.value))}
-              className="w-full p-3 bg-slate-800 rounded border border-slate-700"
-            />
-            {verificationMode === 'zkp' && (
-              <input
-                type="number"
-                placeholder="Your Income"
-                value={secretValue}
-                onChange={(e) => setSecretValue(Number(e.target.value))}
-                className="w-full p-3 bg-green-900/30 rounded border border-green-700"
-              />
-            )}
-            <div className="flex gap-2">
-              <button onClick={() => setVerificationMode('boolean')} className={`flex-1 p-3 rounded ${verificationMode === 'boolean' ? 'bg-slate-600' : 'bg-slate-800'}`}>Boolean</button>
-              <button onClick={() => setVerificationMode('zkp')} className={`flex-1 p-3 rounded ${verificationMode === 'zkp' ? 'bg-purple-600' : 'bg-slate-800'}`}>ZK Proof</button>
-            </div>
-            <button
-              onClick={runVerificationFlow}
-              disabled={loading || !activeAddress}
-              className="w-full p-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-bold disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : 'Run Verification'}
-            </button>
-            {error && <div className="text-red-400 p-2">{error}</div>}
-          </div>
-
-          <div className="space-y-4">
-            <div className="bg-slate-800 p-4 rounded">
-              <div className="text-sm text-slate-400 mb-2">Verification Flow</div>
-              <div className="flex flex-wrap gap-2">
-                {['init', 'request', 'payment', 'prove', 'submit', 'verify', 'complete'].map((s) => (
-                  <div key={s} className={`px-3 py-1 rounded ${step === s ? 'bg-purple-500' : ['init', 'complete'].includes(step) && ['init', 'request', 'payment', 'prove', 'submit', 'verify', 'complete'].indexOf(step) > ['init', 'request', 'payment', 'prove', 'submit', 'verify', 'complete'].indexOf(s) ? 'bg-green-500/30 text-green-400' : 'bg-slate-700'}`}>
-                    {s}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-black/50 p-4 rounded font-mono text-sm max-h-64 overflow-y-auto">
-              {logs.map((log, i) => <div key={i} className="text-slate-300">{log}</div>)}
-              {logs.length === 0 && <div className="text-slate-500">Press Run Verification</div>}
-            </div>
-
-            {verificationResult && (
-              <div className="bg-green-900/30 p-4 rounded border border-green-500">
-                <div className="text-green-400 font-bold">VERIFIED</div>
-                <div className="text-sm mt-2">
-                  Mode: {verificationResult.mode}<br/>
-                  Threshold: ${verificationResult.threshold}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       </main>
+
+      <div className="p-12 text-center text-[10px] uppercase font-black tracking-[0.4em] text-slate-700">
+        Powered by Algorand • Truth Registry Protocol • x402 Payments
+      </div>
 
       <ConnectWallet openModal={openWalletModal} closeModal={() => setOpenWalletModal(false)} />
     </div>

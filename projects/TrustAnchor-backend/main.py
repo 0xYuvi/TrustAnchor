@@ -58,11 +58,8 @@ class IncomeVerificationRequest(BaseModel):
         default="boolean",
         description="Verification mode: 'boolean' for simple check, 'zkp' for ZKP",
     )
-    threshold: float = Field(..., description="Income threshold to verify against")
-    secret_value: Optional[int] = Field(
-        None,
-        description="Secret income value (required for ZKP mode)",
-    )
+    threshold: Optional[float] = Field(0, description="Income threshold to verify against")
+    secret_value: Optional[float] = Field(None, description="Secret income value (required for ZKP mode)")
 
 
 class IncomeVerificationResponse(BaseModel):

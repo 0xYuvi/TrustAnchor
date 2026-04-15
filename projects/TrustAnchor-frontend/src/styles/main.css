@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#000000] text-slate-200 antialiased selection:bg-purple-500/30;
+    font-family: 'Inter', -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .glow-container {
+    @apply relative overflow-hidden;
+  }
+
+  .glow-purple {
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+  }
+
+  .fintech-card {
+    @apply bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 transition-all;
+  }
+
+  .fintech-card:hover {
+    @apply border-purple-500/30 bg-black/60;
+  }
+
+  .btn-premium {
+    @apply px-6 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:scale-[1.05] hover:shadow-[0_0_20px_rgba(255,255,255,0.4)] active:scale-[0.98] transition-all;
+  }
+
+  .btn-lavender {
+    @apply px-6 py-3 bg-purple-500/10 border border-purple-500/30 text-purple-300 font-bold rounded-2xl hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-all;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-purple-400;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-white/20;
+}
