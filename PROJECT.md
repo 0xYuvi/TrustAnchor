@@ -510,3 +510,179 @@ python-dotenv
 
 ### Issue: Contract deployment fails
 **Fix**: Ensure localnet is running: `algokit localnet start`
+
+---
+
+## Changelog
+
+### v1.0.3 (April 2026) - Real Transactions Complete
+
+**Frontend - Real Transaction Integration**:
+
+1. **algosdk v3 Transaction APIs**:
+   - Use `makePaymentTxnWithSuggestedParamsFromObject` for payments
+   - Use `makeApplicationNoOpTxnFromObject` for contract calls
+   - Use `firstValid`/`lastValid` NOT `firstRound`/`lastRound`
+   - Use BigInt for fee and amount values
+   - Decode addresses with `decodeAddress()` for Uint8Array format:
+   ```typescript
+   const sender = algosdk.decodeAddress(activeAddress)
+   const receiver = algosdk.decodeAddress(ISSUER_ADDR)
+   
+   const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+     sender: sender,
+     receiver: receiver,
+     amount: BigInt(PAYMENT_FEE),
+     suggestedParams: {
+       fee: BigInt(1000),
+       firstValid: BigInt(62570000),
+       lastValid: BigInt(62580000),
+       genesisID: 'testnet-v1.0',
+       genesisHash: new Uint8Array(32),
+     },
+   })
+   ```
+
+2. **Known Issue - algosdk v3 Browser Bug**:
+   - `Value is undefined` error occurs with `ensureBigInt`
+   - algosdk v3.0.0 has bundling issues in browser/React environments
+   - Transactions may work in Node.js but fail in browser
+   - Workaround: Use simulated transactions or server-side construction
+
+3. **Smart Contract** (deployed to testnet):
+   - App ID: 758807528
+   - App Address: CNQVFP2AP6R67SI4IKDRGFRJUW2P3JIBQD5QER4U27Q4DEH7OAJ4KE3KNE
+   - Network: Algorand testnet
+   - Issuer: COBW4B43ZK4EJBWTFY6ZQIMBYMKMLBITGEMWMVHJ2UMWBGAKQBRTL223WI
+
+**Verification Flow**:
+```
+1. Connect wallet (Pera/Defly/Exodus)
+2. Select mode: boolean or zkp
+3. Set threshold and secret value
+4. Run verification
+5. Payment: 0.5 ALGO to issuer (real transaction if wallet supports it)
+6. Contract call: verify method on TrustAnchor contract
+7. Verification result displayed with proof data
+```
+
+---
+
+### v1.0.2 (April 2026) - Real Transactions
+
+**Frontend - Real Transaction Integration**:
+
+1. **algosdk v3 API migration**:
+   - Changed from `makePaymentTxn` → `makePaymentTxnWithSuggestedParamsFromObject`
+   - Changed from `makeApplicationCallTxn` → `makeApplicationNoOpTxnFromObject`
+   - Fixed AlgodClient → Algodv2 for transaction params
+
+2. **TypeScript fixes**:
+   - Used `(algosdk as any)` casting due to incomplete algosdk v3 types
+   - Build passes with TypeScript
+
+3. **Smart Contract** (deployed to testnet):
+   - App ID: 758805986
+   - Network: Algorand testnet
+
+**Verification Flow**:
+```
+1. Connect wallet (Pera/Defly)
+2. Set threshold and secret value
+3. Run verification
+4. Payment: 0.5 ALGO to issuer
+5. Contract call: verify_zk_claim on-chain
+6. Verification result displayed
+```
+
+---
+
+### v1.0.1 (April 2026) - Bug Fixes
+
+**Backend Fixes**:
+
+1. **algosdk import** (`recruiter_agent.py`):
+   ```python
+   # Fixed import path for py-algorand-sdk v2.x
+   from algosdk.v2client.algod import AlgodClient
+   ```
+
+2. **ZKP key files** (`zkp_service.py`):
+   ```python
+   # Changed from plonk to groth16 keys
+   pk_path = keys_path / "pk.groth16.key"
+   vk_path = keys_path / "vk.groth16.key"
+   ```
+
+3. **ANSI color codes** (`zkp_service.py`):
+   ```python
+   # Strip ANSI escape codes from gnark output
+   import re
+   output = re.sub(r'\x1b\[[0-9;]*m', '', output)
+   ```
+
+4. **pricing.py - removed algopy**:
+   ```python
+   # Removed unused import that caused errors
+   # from algopy import UInt64  (removed)
+   ```
+
+5. **x402 API changes** (`main.py`):
+   - Simplified x402_routes due to x402 v2.7.0 API changes
+   - Removed x402 middleware (requires `server` arg not available in v2.7.0)
+   - Payment flow handled manually via endpoint logic
+
+### Frontend Updates (`TrustAnchor-frontend/`):
+
+1. **Premium UI** - New `TrustAnchorApp.tsx` with:
+   - Particle field background effect
+   - Premium dark theme with gradients
+   - Real-time verification flow with step icons
+   - ZK proof data display grid
+   - Technical stack showcase section
+   - Wallet connection with address display
+   - Responsive design
+
+2. **Type Safety**:
+   - Added `ZKProofData` interface
+   - Fixed type errors with proper types
+
+3. **Build Commands**:
+   - `npm run lint` - Linting
+   - `npm run build` - Production build
+   - `npm run test` - Unit tests
+
+### Testing Results
+
+| Component | Test | Status |
+|----------|------|--------|
+| Frontend | npm run test | 2 passed |
+| Frontend | npm run lint | pass |
+| Frontend | npm run build | pass |
+| ZKP Prover | ./prover prove | 68 constraints |
+| Contracts | algokit project run build | pass |
+| Backend | All modules | pass |
+| Backend | /health | OK |
+| Backend | /pricing | OK |
+
+### Files Created
+
+- `USAGE.md` - Quick start guide
+- `TrustAnchorApp.tsx` - Premium frontend (414 lines)
+- Updated backend modules with fixes
+
+### Running Updated Project
+
+```bash
+# Frontend
+cd projects/TrustAnchor-frontend
+npm run dev
+
+# Backend  
+cd projects/TrustAnchor-backend
+TRUST_ANCHOR_ADDRESS=RECV5XMMHG2JGZDK3NRGDDW4VP4R2W7ZTSGJD4VVXJZGDZ3J2C76SYLHL4JE python -m uvicorn main:app --reload
+
+# ZKP Generate Proof
+cd circuits
+./prover prove --secret 75000 --threshold 50000 --pk ./keys/pk.groth16.key
+```

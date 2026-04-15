@@ -136,6 +136,23 @@ npm run build    # Build for production
 npm run preview  # Preview production build
 ```
 
+## Smart Contract
+
+### Deployed to Testnet
+- **App ID**: 758807528
+- **App Address**: CNQVFP2AP6R67SI4IKDRGFRJUW2P3JIBQD5QER4U27Q4DEH7OAJ4KE3KNE
+- **Issuer**: COBW4B43ZK4EJBWTFY6ZQIMBYMKMLBITGEMWMVHJ2UMWBGAKQBRTL223WI
+- **Network**: Algorand testnet
+
+### Redeploy Contract
+
+```bash
+cd projects/TrustAnchor-contracts
+algokit project run build
+# Deploy via algokit or:
+algokit project deploy testnet
+```
+
 ## Verification Modes
 
 ### Boolean Mode (0.1 ALGO)

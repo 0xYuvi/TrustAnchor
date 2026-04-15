@@ -131,11 +131,10 @@ class PaymentVerifier:
             )
 
         try:
-            async with self.client as client:
-                response = await client.get(
-                    f"{self.indexer_url}/v2/transactions/{txid}",
-                    headers={"Accept": "application/json"},
-                )
+            response = await self.client.get(
+                f"{self.indexer_url}/v2/transactions/{txid}",
+                headers={"Accept": "application/json"},
+            )
 
             if response.status_code == 404:
                 return PaymentVerificationResult(
@@ -155,7 +154,7 @@ class PaymentVerifier:
             payment_txn = txn.get("payment-transaction", {})
 
             receiver = payment_txn.get("receiver")
-            amount = int(payment_txn.get("amt", 0))
+            amount = int(payment_txn.get("amount", 0))
             actual_sender = txn.get("sender")
             txn_note = txn.get("note", "")
 

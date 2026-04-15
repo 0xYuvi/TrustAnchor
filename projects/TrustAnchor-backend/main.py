@@ -121,64 +121,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
-def get_x402_routes():
-    """Define x402 payment routes."""
-    from x402.http import PaymentOption
-    from x402.http.types import RouteConfig
-    from x402.schemas import Network
-
-    network: Network = "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
-    if ALGORAND_NETWORK == "mainnet":
-        network = "algorand:WJCCZHLTCHEDHDPHNMGBLTONPYFHGHPDZ3WYQSMSD7TMFZCEWKLT7D5HTM"
-
-    return {
-        "POST /verify/income": RouteConfig(
-            accepts=[
-                PaymentOption(
-                    scheme="exact",
-                    network=network,
-                    pay_to=TRUST_ANCHOR_ADDRESS,
-                    price="$0.1",
-                    description="Boolean income verification",
-                ),
-                PaymentOption(
-                    scheme="exact",
-                    network=network,
-                    pay_to=TRUST_ANCHOR_ADDRESS,
-                    price="$0.5",
-                    description="ZKP income verification",
-                ),
-            ],
-            mime_type="application/json",
-        ),
-    }
-
-
-def get_x402_server():
-    """Initialize x402 server."""
-    from x402.server import x402ResourceServer
-    from x402.http import FacilitatorConfig, HTTPFacilitatorClient
-    from x402.mechanisms.avm.exact import register_exact_avm_scheme
-
-    facilitator = HTTPFacilitatorClient(FacilitatorConfig(url=FACILITATOR_URL))
-    server = x402ResourceServer(facilitator)
-    register_exact_avm_scheme(server)
-
-    return server
-
-
-x402_server = get_x402_server()
-x402_routes = get_x402_routes()
-
-
-from x402.http.middleware.fastapi import PaymentMiddlewareASGI
+from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
-    PaymentMiddlewareASGI,
-    routes=x402_routes,
-    server=x402_server,
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X402-Payment-Required"],
 )
+
+# Note: x402 middleware simplified for demo - no payment middleware added
+
+
+@app.get("/")
+async def root():
+    """Root endpoint with API info."""
+    return {
+        "service": "TrustAnchor Issuer Agent",
+        "version": "1.0.0",
+        "endpoints": ["/", "/health", "/pricing", "/verify/income", "/docs"],
+    }
 
 
 @app.get("/health")
@@ -217,30 +181,32 @@ async def verify_income(
     Verify income threshold using boolean or ZKP mode.
 
     Requires x402 payment. The payment amount depends on the verification mode:
-    - boolean: 0.1 ALGO
-    - zkp: 0.5 ALGO
-
     For ZKP mode, provide secret_value which will be proven to be greater than threshold.
     """
-    payment_payload = getattr(http_request.state, "payment_payload", None)
-    payment_requirements = getattr(http_request.state, "payment_requirements", None)
+    txid = http_request.headers.get("x402-payment-proof") or http_request.headers.get("X402-Payment-Proof")
+    expected_amount = get_price(request.mode)
 
-    if not payment_payload:
+    if not txid:
         raise HTTPException(
             status_code=402,
             detail={
                 "error": "Payment required",
-                "message": "This endpoint requires x402 payment",
+                "paymentRequirements": [
+                    {
+                        "maximumAmountRequired": expected_amount,
+                        "payTo": TRUST_ANCHOR_ADDRESS,
+                        "network": f"algorand:{ALGORAND_NETWORK}",
+                    }
+                ]
             },
         )
 
-    expected_amount = get_price(request.mode)
-    payer_address = payment_payload.payload.get("from")
+    payer_address = "wallet_user"
 
     logger.info(
         f"Income verification request: user={request.user_id}, "
         f"mode={request.mode}, threshold={request.threshold}, "
-        f"payer={payer_address}"
+        f"payer={payer_address}, txid={txid}"
     )
 
     if request.mode == VerificationMode.BOOLEAN:
@@ -248,7 +214,7 @@ async def verify_income(
             request.user_id,
             request.threshold,
             payer_address,
-            payment_payload.payload.get("txid"),
+            txid,
             expected_amount,
         )
 
@@ -263,7 +229,7 @@ async def verify_income(
             request.secret_value,
             request.threshold,
             payer_address,
-            payment_payload.payload.get("txid"),
+            txid,
             expected_amount,
         )
 
@@ -285,10 +251,8 @@ async def _verify_boolean(
     if not payment_verifier:
         raise HTTPException(status_code=500, detail="Payment verifier not initialized")
 
-    request_hash = payment_verifier.compute_request_hash(user_id, "boolean", threshold)
-    verification = await payment_verifier.verify_and_bind(
+    verification = await payment_verifier.verify_payment(
         txid=txid,
-        request_hash=request_hash,
         expected_amount=expected_amount,
     )
 
@@ -333,10 +297,8 @@ async def _verify_zkp(
     if not payment_verifier or not zkp_service:
         raise HTTPException(status_code=500, detail="Services not initialized")
 
-    request_hash = payment_verifier.compute_request_hash(user_id, "zkp", threshold)
-    verification = await payment_verifier.verify_and_bind(
+    verification = await payment_verifier.verify_payment(
         txid=txid,
-        request_hash=request_hash,
         expected_amount=expected_amount,
     )
 

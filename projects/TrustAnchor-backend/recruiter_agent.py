@@ -21,7 +21,7 @@ from typing import Optional
 
 import httpx
 from algosdk import encoding, transaction
-from algosdk.v2.client.algod import AlgodClient
+from algosdk.v2client.algod import AlgodClient
 from dotenv import load_dotenv
 
 load_dotenv()

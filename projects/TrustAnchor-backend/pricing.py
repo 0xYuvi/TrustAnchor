@@ -8,7 +8,6 @@ Pricing tiers:
 
 from enum import Enum
 from typing import Literal
-from algopy import UInt64
 
 MICROALGO = 1_000_000
 
@@ -20,7 +19,7 @@ class VerificationMode(str, Enum):
 
 PRICE_MAP: dict[VerificationMode, int] = {
     VerificationMode.BOOLEAN: int(0.1 * MICROALGO),  # 0.1 ALGO in microAlgos
-    VerificationMode.ZKP: int(0.5 * MICROALGO),  # 0.5 ALGO in microAlgos
+    VerificationMode.ZKP: int(0.05 * MICROALGO),  # 0.05 ALGO in microAlgos
 }
 
 

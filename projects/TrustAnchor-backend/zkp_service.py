@@ -190,9 +190,13 @@ class ZKPService:
 
             import re
 
-            output = stdout.decode()
-            output = re.sub(r"\x1b\[[0-9;]*m", "", output)
-            proof_data = json.loads(output)
+            output = stdout.decode().strip()
+            # gnark often prints "INF" logger statements before the JSON output
+            json_str = output
+            if "{" in output:
+                json_str = "{" + output.split("{", 1)[1]
+                
+            proof_data = json.loads(json_str)
 
             return ZKProofResult(
                 valid=True,

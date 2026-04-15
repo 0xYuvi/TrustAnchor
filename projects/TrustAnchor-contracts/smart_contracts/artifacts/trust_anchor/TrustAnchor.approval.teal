@@ -3,26 +3,22 @@
 
 // algopy.arc4.ARC4Contract.approval_program() -> uint64:
 main:
+    intcblock 0 2 1
     // smart_contracts/trust_anchor/contract.py:5
     // class TrustAnchor(ARC4Contract):
     txn NumAppArgs
-    bz main___algopy_default_create@5
-    pushbytes 0x02bece11 // method "hello(string)string"
-    txna ApplicationArgs 0
-    match main_hello_route@3
-    err
-
-main_hello_route@3:
-    // smart_contracts/trust_anchor/contract.py:6
-    // @abimethod()
+    bz main___algopy_default_create@9
     txn OnCompletion
     !
-    txn ApplicationID
-    &&
     assert
-    b hello
+    txn ApplicationID
+    assert
+    pushbytess 0x02bece11 0xf72722af // method "hello(string)string", method "verify(uint64,byte[])bool"
+    txna ApplicationArgs 0
+    match hello verify
+    err
 
-main___algopy_default_create@5:
+main___algopy_default_create@9:
     txn OnCompletion
     !
     txn ApplicationID
@@ -37,9 +33,9 @@ hello:
     // @abimethod()
     txna ApplicationArgs 1
     dup
-    pushint 0
+    intc_0 // 0
     extract_uint16 // on error: invalid array length header
-    pushint 2
+    intc_1 // 2
     +
     dig 1
     len
@@ -63,5 +59,30 @@ hello:
     swap
     concat
     log
-    pushint 1
+    intc_2 // 1
+    return
+
+
+// smart_contracts.trust_anchor.contract.TrustAnchor.verify[routing]() -> void:
+verify:
+    // smart_contracts/trust_anchor/contract.py:10
+    // @abimethod()
+    txna ApplicationArgs 1
+    len
+    pushint 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_1 // 2
+    +
+    swap
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    pushbytes 0x151f7c7580
+    log
+    intc_2 // 1
     return
