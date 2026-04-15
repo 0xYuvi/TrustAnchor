@@ -180,6 +180,14 @@ class ZKPService:
             # Diagnostic: Log OS and Binary info in production
             import platform
             logger.info(f"[ZKP-DIAG] OS: {platform.system()}, Arch: {platform.machine()}")
+        logger.info(f"[ZKP-DIAG] Prover Path: {self.prover_binary} (Abs: {os.path.abspath(self.prover_binary)})")
+        logger.info(f"[ZKP-DIAG] Keys Dir: {self.keys_dir} (Abs: {os.path.abspath(self.keys_dir)})")
+        
+        # Ensure prover is executable (redundant but safe)
+        if os.path.exists(self.prover_binary):
+            os.chmod(self.prover_binary, 0o755)
+        else:
+            logger.error(f"[ZKP-PROVE] CRITICAL: Prover binary NOT found at {os.path.abspath(self.prover_binary)}")
             
             try:
                 import subprocess
