@@ -2,7 +2,12 @@ import { AlgoViteClientConfig, AlgoViteKMDConfig } from '../../interfaces/networ
 
 export function getAlgodConfigFromViteEnvironment(): AlgoViteClientConfig {
   if (!import.meta.env.VITE_ALGOD_SERVER) {
-    throw new Error('Attempt to get default algod configuration without specifying VITE_ALGOD_SERVER in the environment variables')
+    return {
+      server: 'https://testnet-api.algonode.cloud',
+      port: '',
+      token: '',
+      network: 'testnet',
+    }
   }
 
   return {
@@ -15,14 +20,19 @@ export function getAlgodConfigFromViteEnvironment(): AlgoViteClientConfig {
 
 export function getIndexerConfigFromViteEnvironment(): AlgoViteClientConfig {
   if (!import.meta.env.VITE_INDEXER_SERVER) {
-    throw new Error('Attempt to get default algod configuration without specifying VITE_INDEXER_SERVER in the environment variables')
+    return {
+      server: 'https://testnet-idx.algonode.cloud',
+      port: '',
+      token: '',
+      network: 'testnet',
+    }
   }
 
   return {
     server: import.meta.env.VITE_INDEXER_SERVER,
     port: import.meta.env.VITE_INDEXER_PORT,
     token: import.meta.env.VITE_INDEXER_TOKEN,
-    network: import.meta.env.VITE_ALGOD_NETWORK,
+    network: import.meta.env.VITE_ALGOD_NETWORK || 'testnet',
   }
 }
 
