@@ -1,5 +1,5 @@
 # Stage 1: Build the Go Prover from source
-FROM golang:1.21-alpine as prover-builder
+FROM golang:1.24-alpine as prover-builder
 # Install build dependencies for C-go / crypto
 RUN apk add --no-cache build-base
 WORKDIR /app

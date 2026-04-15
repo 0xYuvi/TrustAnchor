@@ -36,7 +36,7 @@ const ISSUER_ADDR = 'COBW4B43ZK4EJBWTFY6ZQIMBYMKMLBITGEMWMVHJ2UMWBGAKQBRTL223WI'
 const PAYMENT_FEE = 50000
 
 const TrustAnchorApp: React.FC = () => {
-  const { activeAddress, transactionSigner, signTransactions } = useWallet()
+  const { activeAddress, transactionSigner, signTransactions, wallets } = useWallet()
 
   const [openWalletModal, setOpenWalletModal] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -52,6 +52,7 @@ const TrustAnchorApp: React.FC = () => {
   
   const [portalMode, setPortalMode] = useState<'citizen' | 'verifier'>('citizen')
   const [attestationCode, setAttestationCode] = useState<string | null>(null)
+  const [showDisconnect, setShowDisconnect] = useState(false)
   
   // Inquiry Flow State
   const [inquiryCode, setInquiryCode] = useState('')
@@ -307,12 +308,53 @@ const TrustAnchorApp: React.FC = () => {
           </button>
         </div>
 
-        <button 
-          onClick={() => setOpenWalletModal(true)} 
-          className="px-6 py-2.5 bg-white text-black font-black rounded-2xl hover:scale-105 transition-all shadow-lg text-[10px] uppercase tracking-widest"
-        >
-          {activeAddress ? `${activeAddress.slice(0, 4)}...${activeAddress.slice(-4)}` : 'Connect Wallet'}
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => {
+              if (!activeAddress) {
+                setOpenWalletModal(true)
+              } else if (showDisconnect) {
+                console.log('[Wallet] Triggering logout...')
+                const activeWallet = wallets?.find((w) => w.isActive)
+                if (activeWallet) {
+                  activeWallet.disconnect().then(() => {
+                    setShowDisconnect(false)
+                  })
+                } else {
+                  // Fallback: Clear storage and reload
+                  localStorage.removeItem('@txnlab/use-wallet:v3')
+                  window.location.reload()
+                }
+              } else {
+                setShowDisconnect(true)
+              }
+            }} 
+            className={`px-6 py-2.5 font-bold rounded-2xl transition-all shadow-lg text-[10px] uppercase tracking-widest flex items-center gap-2 ${activeAddress ? (showDisconnect ? 'bg-red-500 text-white' : 'bg-white/5 border border-white/10 text-slate-300 hover:border-purple-500/50') : 'bg-white text-black hover:scale-105'}`}
+          >
+            {activeAddress ? (
+              showDisconnect ? (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                  Confirm Disconnect
+                </>
+              ) : (
+                <>
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                  {`${activeAddress.slice(0, 4)}...${activeAddress.slice(-4)}`}
+                </>
+              )
+            ) : 'Connect Wallet'}
+          </button>
+          
+          {showDisconnect && (
+             <button 
+              onClick={() => setShowDisconnect(false)}
+              className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-500 hover:text-white transition-colors"
+             >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+             </button>
+          )}
+        </div>
       </nav>
 
       <main className="relative z-10 max-w-7xl mx-auto p-8 pt-16">
