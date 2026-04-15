@@ -142,13 +142,17 @@ class KYCAgent:
                 # SHA512_256("register_anchor(byte[],byte[])")[:4] = 0x51e7c6bb
                 method_selector = bytes.fromhex("51e7c6bb")
                 
+                trait_id_bytes = (len("income_annual").to_bytes(2, "big") + "income_annual".encode())
+                commitment_bytes = (len(commitment).to_bytes(2, "big") + commitment.encode())
+                
                 app_args = [
                     method_selector,
-                    # trait_id (byte[] with length prefix for ARC-4)
-                    (len("income_annual").to_bytes(2, "big") + "income_annual".encode()),
-                    # commitment (byte[] with length prefix for ARC-4)
-                    (len(commitment).to_bytes(2, "big") + commitment.encode()),
+                    trait_id_bytes,
+                    commitment_bytes,
                 ]
+
+                # Box key is "anchor_" + trait_id (with length prefix)
+                box_key = b"anchor_" + trait_id_bytes
 
                 txn = ApplicationCallTxn(
                     sender=self.oracle_address,
@@ -156,7 +160,7 @@ class KYCAgent:
                     index=TRUST_ANCHOR_APP_ID,
                     on_complete=OnComplete.NoOpOC,
                     app_args=app_args,
-                    boxes=[(TRUST_ANCHOR_APP_ID, b"anchor_income_annual")],
+                    boxes=[(TRUST_ANCHOR_APP_ID, box_key)],
                 )
 
                 # Sign and send

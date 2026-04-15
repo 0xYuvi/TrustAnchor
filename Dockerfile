@@ -26,6 +26,9 @@ COPY projects/TrustAnchor-backend/ .
 # Copy the compiled prover from Stage 1 into the same /app folder
 COPY --from=prover-builder /app/prover .
 
+# Copy the ZK keys into the container
+COPY circuits/keys/ ./circuits/keys/
+
 # Ensure binary is executable
 RUN chmod +x prover
 
