@@ -160,9 +160,13 @@ setStep('init')
       setStep('request')
       addLog(`[REQUEST] POST /verify/income (${verificationMode})`)
       
+      // Logic: If they chose ZKP but didn't select Income, we MUST use boolean mode 
+      // as our only ZK circuit is income-based.
+      const actualMode = (verificationMode === 'zkp' && !discloseIncome) ? 'boolean' : verificationMode;
+
       const payload: any = {
         user_id: userId || activeAddress.slice(0, 8),
-        mode: verificationMode,
+        mode: actualMode,
         threshold: threshold,
       }
       
@@ -398,39 +402,70 @@ setStep('init')
                                     <div className="font-bold text-white text-xs leading-relaxed">{kycData.verified_data?.address}</div>
                                 </div>
                             </label>
+
+                            {kycData.verified_data?.income_annual !== undefined && (
+                                <label className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseIncome ? 'bg-green-500/10 border-green-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
+                                    <input type="checkbox" checked={discloseIncome} onChange={(e) => setDiscloseIncome(e.target.checked)} className="w-5 h-5 accent-green-500 rounded-lg" />
+                                    <div className="flex-1">
+                                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Annual Income (Financial)</div>
+                                        <div className="font-bold text-white">${kycData.verified_data.income_annual.toLocaleString()}</div>
+                                    </div>
+                                </label>
+                            )}
                         </div>
                      </div>
 
                      <div className="space-y-8">
-                        <div className="text-white font-black text-sm uppercase tracking-widest mb-2 border-b border-white/5 pb-2 inline-block">Verification Trigger</div>
+                        <div className="text-white font-black text-sm uppercase tracking-widest mb-2 border-b border-white/5 pb-2 inline-block">Attestation Factory</div>
                         
                         <div className="space-y-4 bg-white/[0.02] p-8 rounded-3xl border border-white/5">
-                            {verificationMode === 'zkp' && (
+                            {/* Metadata input (Alias helper) */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] uppercase font-bold text-slate-500">Verification Alias (Your Session Name)</label>
+                                    <button 
+                                        onClick={() => setUserId(`Verify_${Math.floor(1000 + Math.random() * 9000)}`)}
+                                        className="text-[9px] bg-white/5 hover:bg-white/10 text-purple-400 px-2 py-0.5 rounded border border-white/5 transition-colors uppercase font-bold"
+                                    >
+                                        Auto-Generate
+                                    </button>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    placeholder="e.g. Identity_Check_402"
+                                    value={userId} 
+                                    onChange={(e) => setUserId(e.target.value)} 
+                                    className="w-full bg-black/50 border border-white/10 p-4 rounded-xl font-bold text-white focus:outline-none focus:border-purple-500/50 transition-all font-mono text-sm"
+                                />
+                            </div>
+
+                            {/* Conditional Threshold - Only if document has income data AND user chooses to disclose it in ZKP mode */}
+                            {verificationMode === 'zkp' && discloseIncome && kycData.verified_data?.income_annual !== undefined && (
                                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <label className="text-[10px] uppercase font-bold text-slate-500">Target Threshold ($)</label>
+                                    <label className="text-[10px] uppercase font-bold text-slate-500 text-green-400">Financial Bound Threshold ($)</label>
                                     <input 
                                         type="number" 
                                         value={threshold} 
                                         onChange={(e) => setThreshold(Number(e.target.value))} 
-                                        className="w-full bg-black/50 border border-white/10 p-4 rounded-xl font-bold text-white focus:outline-none focus:border-purple-500/50 transition-all"
+                                        className="w-full bg-black/50 border border-green-500/30 p-4 rounded-xl font-bold text-white focus:outline-none focus:border-green-500/50 transition-all"
                                     />
                                 </div>
                             )}
 
                             <div className="flex flex-col gap-2">
-                                <label className="text-[10px] uppercase font-bold text-slate-500 mb-1">Verification Mode</label>
+                                <label className="text-[10px] uppercase font-bold text-slate-500 mb-1">Proof Configuration</label>
                                 <div className="flex gap-2 p-1 bg-black/50 rounded-xl border border-white/5">
-                                    <button onClick={() => setVerificationMode('boolean')} className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${verificationMode === 'boolean' ? 'bg-white/10 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}>Standard Identity</button>
-                                    <button onClick={() => setVerificationMode('zkp')} className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all ${verificationMode === 'zkp' ? 'bg-purple-500 text-white' : 'text-slate-500 hover:text-slate-300'}`}>ZK-Proof (Income)</button>
+                                    <button onClick={() => setVerificationMode('boolean')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${verificationMode === 'boolean' ? 'bg-white/10 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}>Identity Seal</button>
+                                    <button onClick={() => setVerificationMode('zkp')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${verificationMode === 'zkp' ? 'bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'text-slate-500 hover:text-slate-300'}`}>ZK Attestation</button>
                                 </div>
                             </div>
 
                             <button
                                 onClick={runVerificationFlow}
                                 disabled={loading || !activeAddress}
-                                className="w-full py-6 bg-white text-black font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 mt-4"
+                                className="w-full py-6 bg-white text-black font-black uppercase tracking-[0.2em] text-sm rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 mt-4"
                             >
-                                {loading ? 'Computing Proof...' : 'Initiate Verification'}
+                                {loading ? 'Sealing Attributes...' : `Generate ${(verificationMode === 'zkp' && discloseIncome) ? 'Zero-Knowledge' : 'Identity'} Proof`}
                             </button>
                             {error && <div className="text-red-400 text-center text-xs font-bold mt-2">Error: {error}</div>}
                         </div>

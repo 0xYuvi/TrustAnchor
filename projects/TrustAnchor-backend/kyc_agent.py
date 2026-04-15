@@ -78,7 +78,7 @@ class KYCAgent:
         # Setup oracle account
         if KYC_ORACLE_MNEMONIC:
             self.oracle_key = algosdk.mnemonic.to_private_key(KYC_ORACLE_MNEMONIC)
-            self.oracle_address = algosdk.mnemonic.from_private_key(self.oracle_key)
+            self.oracle_address = algosdk.account.address_from_private_key(self.oracle_key)
         else:
             self.oracle_key = None
             self.oracle_address = None

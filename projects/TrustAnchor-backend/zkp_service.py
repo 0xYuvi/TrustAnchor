@@ -161,16 +161,22 @@ class ZKPService:
             )
 
         try:
+            # Ensure we have clean integers (strip decimals if they arrived as strings)
+            safe_secret = str(int(float(secret_value)))
+            safe_threshold = str(int(float(threshold)))
+            
             cmd = [
                 str(binary_path),
                 "prove",
                 "--secret",
-                str(secret_value),
+                safe_secret,
                 "--threshold",
-                str(threshold),
+                safe_threshold,
                 "--pk",
                 str(pk_path),
             ]
+            
+            logger.info(f"[ZKP] Running command: {' '.join(cmd)}")
 
             result = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -297,15 +303,23 @@ class ZKPService:
         try:
             proof_bytes = base64.b64decode(proof)
             proof_b64 = base64.b64encode(proof_bytes).decode()
+            
+            # Subcommand syntax: prover verify --proof <p> --public <pj> --vk <vk>
+            keys_path = Path(self.keys_dir)
+            vk_path = keys_path / "vk.groth16.key"
 
             cmd = [
                 str(binary_path),
-                "--verify",
+                "verify",
                 "--proof",
                 proof_b64,
                 "--public",
                 json.dumps(public_inputs),
+                "--vk",
+                str(vk_path),
             ]
+
+            logger.info(f"[ZKP] Running verification: {' '.join(cmd)}")
 
             result = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -316,13 +330,22 @@ class ZKPService:
             stdout, stderr = await result.communicate()
 
             if result.returncode != 0:
+                logger.error(f"Verify binary failed: {stderr.decode()}")
                 return ZKProofResult(
                     valid=False,
-                    error=f"Verification failed: {stderr.decode()}",
+                    error=f"Verification script error: {stderr.decode()}",
                 )
 
+            # Parse the JSON output from stdout
+            output = stdout.decode().strip()
+            # Handle potential gnark logs before JSON
+            json_str = output
+            if "{" in output:
+                json_str = "{" + output.split("{", 1)[1]
+            
+            data = json.loads(json_str)
             return ZKProofResult(
-                valid=True,
+                valid=data.get("valid", False),
                 proof=ZKProof(proof=proof, public_inputs=public_inputs),
             )
 

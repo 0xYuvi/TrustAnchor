@@ -388,12 +388,10 @@ async def anchor_document_upload(
             "citizenship": kyc_record.citizenship,
             "age": kyc_record.age,
             "address": kyc_record.address,
+            "income_annual": kyc_record.income_annual,
         }
         
-        # Only show financial info if this is a Bank Statement, hiding it for Aadhaar
-        if not is_aadhaar:
-            response_data["income_annual"] = kyc_record.income_annual
-        else:
+        if is_aadhaar:
             response_data["date_of_birth"] = kyc_record.date_of_birth
 
         return KYCAnchorResponse(
