@@ -1,9 +1,9 @@
-# Stage 1: Build the Go Prover
+# Stage 1: Build the Go Prover from source
 FROM golang:1.21-alpine as prover-builder
 WORKDIR /app
-COPY zkp/ ./zkp/
-# Example build command if source is provided
-# RUN cd zkp && go build -o prover main.go
+# Copy the circuit source from the repo root
+COPY circuits/ ./circuits/
+RUN cd circuits && go build -o /app/prover cmd/prover/main.go
 
 # Stage 2: Python Backend
 FROM python:3.11-slim
@@ -15,13 +15,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
-COPY requirements.txt .
+COPY projects/TrustAnchor-backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source
-COPY . .
+# Copy backend source
+COPY projects/TrustAnchor-backend/ .
 
-# Ensure the prover binary is executable
+# Copy the compiled prover from Stage 1
+COPY --from=prover-builder /app/prover .
+
+# Ensure binary is executable
 RUN chmod +x prover
 
 # Environment variables
