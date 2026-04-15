@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Algorand config
 ALGOD_URL = os.getenv("ALGOD_URL", "https://testnet-api.4160.nodely.dev")
 ALGOD_TOKEN = os.getenv("ALGOD_TOKEN", "")
-TRUST_ANCHOR_APP_ID = int(os.getenv("TRUST_ANCHOR_APP_ID", "758839639"))
+TRUST_ANCHOR_APP_ID = int(os.getenv("TRUST_ANCHOR_APP_ID", "758875733"))
 KYC_ORACLE_MNEMONIC = os.getenv("KYC_ORACLE_MNEMONIC", "")
 
 
@@ -138,9 +138,9 @@ class KYCAgent:
                 # Get transaction params
                 params = self.algod.suggested_params()
 
-                # ARC-4 selector for register_anchor(byte[],byte[])
-                # SHA512_256("register_anchor(byte[],byte[])")[:4] = 0xd8873ced
-                method_selector = bytes.fromhex("d8873ced")
+                # ARC-4 selector for register_anchor(byte[],byte[])bool
+                # SHA512_256("register_anchor(byte[],byte[])")[:4] = 0x51e7c6bb
+                method_selector = bytes.fromhex("51e7c6bb")
                 
                 app_args = [
                     method_selector,

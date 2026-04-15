@@ -21,9 +21,9 @@ const AppCalls = ({ openModal, setModalState }: AppCallsInterface) => {
     <dialog id="appcalls_modal" className={`modal ${openModal ? 'modal-open' : ''} bg-slate-200`}>
       <form method="dialog" className="modal-box">
         <h3 className="font-bold text-lg">TrustAnchor Contract</h3>
-        <p className="py-4">Contract ID: 758839639</p>
+        <p className="py-4">Contract ID: 758875733</p>
         <p className="py-2 text-sm text-slate-600">
-          Methods: anchor_identity, get_commitment, verify
+          Methods: register_anchor, get_commitment, verify
         </p>
         <div className="modal-action ">
           <button className="btn" onClick={() => setModalState(!openModal)}>

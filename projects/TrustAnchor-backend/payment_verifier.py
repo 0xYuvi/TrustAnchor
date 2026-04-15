@@ -146,6 +146,7 @@ class PaymentVerifier:
                 txn_note = txn.get("note", "")
 
                 if receiver != self.receiver_address:
+                    logger.error(f"[PAYMENT] Receiver mismatch: Expected {self.receiver_address}, Got {receiver}")
                     return PaymentVerificationResult(valid=False, error="Wrong receiver")
 
                 if amount < expected_amount:
