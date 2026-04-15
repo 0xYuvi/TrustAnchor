@@ -21,13 +21,24 @@ if (import.meta.env.VITE_ALGOD_NETWORK === 'localnet') {
 }
 
 export default function App() {
-  const algodConfig = getAlgodConfigFromViteEnvironment()
+  let algodConfig;
+  try {
+    algodConfig = getAlgodConfigFromViteEnvironment()
+  } catch (e) {
+    console.warn("Environment variables missing, defaulting to Testnet")
+    algodConfig = {
+      server: 'https://testnet-api.algonode.cloud',
+      port: '',
+      token: '',
+      network: 'testnet'
+    }
+  }
 
   const walletManager = new WalletManager({
     wallets: supportedWallets,
-    defaultNetwork: algodConfig.network,
+    defaultNetwork: algodConfig.network || 'testnet',
     networks: {
-      [algodConfig.network]: {
+      [algodConfig.network || 'testnet']: {
         algod: {
           baseServer: algodConfig.server,
           port: algodConfig.port,
