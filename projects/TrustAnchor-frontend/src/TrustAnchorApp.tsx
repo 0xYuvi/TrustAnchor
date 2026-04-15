@@ -151,21 +151,15 @@ const TrustAnchorApp: React.FC = () => {
         addLog(`[PAYMENT] Inquiry Fee Required: ${amountRequired / 1_000_000} ALGO`)
         
         const algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', '')
-        const suggestedParams = await algodClient.getTransactionParams().do()
-        
-        const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-          sender: activeAddress,
-          receiver: payTo,
-          amount: BigInt(amountRequired),
-          suggestedParams: suggestedParams,
-          note: new TextEncoder().encode(`TrustAnchor Inquiry: ${verificationMode}`)
-        })
-        
         setStep('submit')
-        const encodedTxn = paymentTxn.toByte()
-        const signedTxns = await signTransactions([encodedTxn])
-        const txId = paymentTxn.txID().toString()
-        await algodClient.sendRawTransaction(signedTxns[0]).do()
+        
+        const encodedTxs = await x402.createPaymentTransactions(payPayload)
+        if (!encodedTxs || encodedTxs.length === 0) {
+          throw new Error("Failed to generate payment transactions")
+        }
+
+        const signedTxs = await signTransactions(encodedTxs)
+        const { txId } = await algodClient.sendRawTransaction(signedTxs).do()
         
         addLog(`[TX] Confirmed: ${txId}`)
         await algosdk.waitForConfirmation(algodClient, txId, 4)
@@ -642,7 +636,10 @@ const TrustAnchorApp: React.FC = () => {
         </div>
       </main>
 
-      <ConnectWallet open={openWalletModal} setOpen={setOpenWalletModal} />
+      <ConnectWallet 
+        openModal={openWalletModal} 
+        closeModal={() => setOpenWalletModal(false)} 
+      />
       
       {/* Floating Error Toast */}
       {error && (
