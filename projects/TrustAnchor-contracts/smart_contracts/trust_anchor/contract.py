@@ -1,11 +1,23 @@
-from algopy import ARC4Contract, UInt64, String, Bytes
-from algopy.arc4 import abimethod, Bool
+from algopy import ARC4Contract, UInt64, Bytes, BoxMap
+from algopy.arc4 import abimethod, Bool, DynamicBytes
 
 
 class TrustAnchor(ARC4Contract):
+    def __init__(self) -> None:
+        self.anchors = BoxMap(DynamicBytes, DynamicBytes, key_prefix="anchor_")
+
     @abimethod()
-    def hello(self, name: String) -> String:
-        return "Hello, " + name
+    def anchor_identity(
+        self,
+        user_address: DynamicBytes,
+        commitment: DynamicBytes,
+    ) -> Bool:
+        self.anchors[user_address.copy()] = commitment.copy()
+        return Bool(True)
+
+    @abimethod()
+    def get_commitment(self, user_address: DynamicBytes) -> DynamicBytes:
+        return self.anchors[user_address.copy()]
 
     @abimethod()
     def verify(self, threshold: UInt64, proof_data: Bytes) -> Bool:

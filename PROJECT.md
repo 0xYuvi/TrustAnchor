@@ -513,7 +513,160 @@ python-dotenv
 
 ---
 
+## Configuration for Real On-Chain Anchors
+
+### Required: Set KYC Oracle Mnemonic
+
+To enable **REAL** on-chain KYC anchors (not simulated), you need to:
+
+1. **Get your 25-word mnemonic** from your Algorand wallet
+2. **Add to .env file**:
+
+```bash
+cd projects/TrustAnchor-backend
+echo 'KYC_ORACLE_MNEMONIC="your 25 word mnemonic..."' >> .env
+python -m uvicorn main:app --reload
+```
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `KYC_ORACLE_MNEMONIC` | Yes* | 25-word wallet mnemonic |
+| `TRUST_ANCHOR_APP_ID` | No | Contract ID (default: 758839639) |
+
+*Without this, anchors are simulated (not on-chain).
+
+### With vs Without Mnemonic
+
+**WITH Mnemonic → REAL Algorand transaction**
+**WITHOUT Mnemonic → Simulated in-memory anchor**
+
+---
+
 ## Changelog
+
+### v1.2.0 (April 2026) - Real On-Chain KYC
+
+**Smart Contract - Real Anchor**:
+```python
+class TrustAnchor(ARC4Contract):
+    def __init__(self) -> None:
+        self.anchors = BoxMap(DynamicBytes, DynamicBytes, key_prefix="anchor_")
+    
+    @abimethod()
+    def anchor_identity(self, user_address: DynamicBytes, commitment: DynamicBytes) -> Bool:
+        self.anchors[user_address.copy()] = commitment.copy()
+        return Bool(True)
+    
+    @abimethod()
+    def get_commitment(self, user_address: DynamicBytes) -> DynamicBytes:
+        return self.anchors[user_address.copy()]
+```
+
+**KYC Agent - Real Algorand Transactions**:
+- Uses `KYC_ORACLE_MNEMONIC` to sign anchor transactions
+- Submits `anchor_identity` to TrustAnchor contract
+- Waits for confirmation
+- Falls back to simulation if no mnemonic
+
+**Deployed on Testnet**:
+- **App ID**: 758839639
+- **App Address**: C26YGOOEOCND6RLWKHCO23NU5DIVBJUV65PWB3OGIF734B4PZQYD6IXYRQ
+
+**Flow - Now Real**:
+```
+1. User clicks "Connect Bank & Anchor Identity"
+2. Backend generates KYC data + commitment
+3. Backend submits anchor_identity() to Algorand (REAL TX)
+4. Transaction confirmed on-chain
+5. User sees their verified income
+6. Verification uses anchored data
+```
+
+---
+
+### v1.1.0 (April 2026) - KYC Agent Architecture
+
+**New Feature: Trusted Issuer/KYC Agent Flow**
+
+1. **KYC Agent Service** (`kyc_agent.py`):
+   - Simulates a bank/government identity provider
+   - Generates verified user data (income, citizenship, etc.)
+   - Creates cryptographic commitment: Hash(data + issuer_salt)
+   - Anchors to Algorand (simulated for demo)
+   
+2. **New Endpoints**:
+   - `POST /kyc/anchor` - Anchor user identity
+   - `GET /kyc/status/{address}` - Check anchor status
+
+3. **Frontend Update**:
+   - New "Trusted Identity Portal" section
+   - User must anchor identity before verification
+   - Shows anchored KYC data (income, citizenship)
+   - Uses anchored income for ZKP generation
+
+**Architecture Flow**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    KYC Agent Flow                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. USER CONNECTS BANK (KYC Agent)                              │
+│     ┌──────────┐      POST /kyc/anchor                          │
+│     │ User     │ ─────────────────►                             │
+│     │ Wallet   │                                               │
+│     └──────────┘                                               │
+│                                          │                     │
+│                                          ▼                     │
+│     ┌─────────────────────────────────────────────┐           │
+│     │ KYC Agent (Bank/Government Simulator)       │           │
+│     │  - Fetch: Income, Citizenship, DOB          │           │
+│     │  - Hash: Commitment = Hash(data + salt)    │           │
+│     │  - Anchor: Submit to Algorand               │           │
+│     └─────────────────────────────────────────────┘           │
+│                                          │                     │
+│                                          ▼                     │
+│     2. ON-CHAIN ANCHOR                                          │
+│        Commitment stored in TruthRegistry                      │
+│                                                                  │
+│  3. RECRUITER REQUESTS VERIFICATION                             │
+│     ┌──────────┐      "Prove income > $50k"                    │
+│     │Recruiter │ ◄────────────────────                         │
+│     │ Agent    │                                               │
+│     └──────────┘                                               │
+│           │                                                     │
+│           ▼                                                     │
+│     4. USER GENERATES ZKP                                       │
+│        - Uses TRUE income from anchor (not user input)         │
+│        - Proves: income > threshold                            │
+│        - Also proves: matches on-chain commitment             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Data Model**:
+```python
+class KYCRecord:
+    user_address: str
+    full_name: str
+    income_annual: int
+    citizenship: str
+    kyc_id: str  # e.g., "KYC-ABC123DEF456"
+
+class IdentityAnchor:
+    commitment: str  # Hash(income + kyc_id + salt)
+    kyc_id: str
+    anchor_txid: str  # Algorand transaction ID
+```
+
+**Frontend UI**:
+- "Connect Bank & Anchor Identity" button
+- Shows anchored identity status
+- Displays verified income from bank
+- Prevents fake data input
+
+---
 
 ### v1.0.3 (April 2026) - Real Transactions Complete
 

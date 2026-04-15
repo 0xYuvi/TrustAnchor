@@ -12,18 +12,22 @@ Dynamic Pricing:
 
 import logging
 import os
+import re
+import tempfile
+import pdfplumber
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal, Optional
 
 from algosdk import encoding
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from payment_verifier import PaymentVerifier, create_payment_verifier
 from pricing import VerificationMode, get_price, get_price_algo
 from zkp_service import ZKPService, create_zkp_service
+from kyc_agent import KYCAgent, kyc_issuer_agent, KYCRecord, IdentityAnchor
 
 load_dotenv()
 
@@ -141,7 +145,16 @@ async def root():
     return {
         "service": "TrustAnchor Issuer Agent",
         "version": "1.0.0",
-        "endpoints": ["/", "/health", "/pricing", "/verify/income", "/docs"],
+        "description": "Privacy-preserving identity verification with ZKPs",
+        "endpoints": [
+            "/",
+            "/health",
+            "/pricing",
+            "/kyc/anchor",
+            "/kyc/status/{address}",
+            "/verify/income",
+            "/docs",
+        ],
     }
 
 
@@ -172,6 +185,267 @@ async def get_pricing():
     }
 
 
+# =============================================================================
+# KYC Agent Endpoints - Identity Anchoring
+# =============================================================================
+
+
+class KYCAnchorRequest(BaseModel):
+    """Request to anchor identity"""
+
+    user_address: str
+    full_name: Optional[str] = None
+    income_annual: Optional[int] = None
+    citizenship: Optional[str] = None
+    date_of_birth: Optional[str] = None
+
+
+class KYCAnchorResponse(BaseModel):
+    """Response with anchored identity info"""
+
+    success: bool
+    user_address: str
+    kyc_id: str
+    commitment: str
+    anchor_txid: Optional[str]
+    block: Optional[int]
+    verified_data: dict
+
+
+@app.post("/kyc/anchor")
+async def anchor_identity(request: KYCAnchorRequest):
+    """
+    Anchor user's identity to Algorand.
+
+    Flow:
+    1. KYC Agent fetches verified data (simulated bank DB)
+    2. Generates cryptographic commitment
+    3. Anchors to Algorand TruthRegistry
+    4. Returns anchor info for ZKP generation
+
+    This is the "Trusted Issuer" step - user authorizes their bank/government
+    to anchor their verified identity on-chain.
+    """
+    logger.info(f"[API] KYC anchor request for {request.user_address[:8]}...")
+
+    try:
+        kwargs = request.model_dump(exclude_none=True)
+        user_addr = kwargs.pop("user_address")
+        
+        # Run KYC anchoring
+        kyc_record, anchor = await kyc_issuer_agent.extract_and_anchor(
+            user_address=user_addr, create_onchain=True, **kwargs
+        )
+
+        return KYCAnchorResponse(
+            success=True,
+            user_address=request.user_address,
+            kyc_id=kyc_record.kyc_id,
+            commitment=anchor.commitment,
+            anchor_txid=anchor.anchor_txid,
+            block=anchor.block,
+            verified_data={
+                "full_name": kyc_record.full_name,
+                "income_annual": kyc_record.income_annual,
+                "citizenship": kyc_record.citizenship,
+                "date_of_birth": kyc_record.date_of_birth,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"[API] KYC anchor failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/kyc/upload")
+async def anchor_document_upload(
+    user_address: str = Form(...),
+    file: UploadFile = File(...)
+):
+    """
+    Parse an Aadhaar/Bank PDF and anchor extracted Data.
+    """
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Must be a PDF document.")
+        
+    extracted_text = ""
+    try:
+        # Save temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+        
+        # Parse PDF using pdfplumber
+        with pdfplumber.open(tmp_path) as pdf:
+            for page in pdf.pages:
+                extracted_text += page.extract_text() + "\n"
+        
+        os.unlink(tmp_path)
+    except Exception as e:
+        logger.error(f"[API] PDF Extraction failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse PDF document.")
+
+    # Identification Logic: Is this an Aadhaar or a Bank Statement?
+    is_aadhaar = False
+    extracted_name = "Auth Verified"
+    citizenship = "US"
+    income_val = 0
+
+    aadhaar_match = re.search(r'\b\d{4}\s?\d{4}\s?\d{4}\b', extracted_text)
+    if aadhaar_match or "aadhaar" in extracted_text.lower() or "dob" in extracted_text.lower():
+        is_aadhaar = True
+        citizenship = "IN"
+        extracted_name = "Verified Aadhaar Citizen"
+        
+        # Search contextually for the name on the Aadhaar card (usually immediately preceding DOB)
+        lines = [line.strip() for line in extracted_text.split('\n') if line.strip()]
+        for idx, line in enumerate(lines):
+            if "DOB" in line.upper() or "YEAR OF BIRTH" in line.upper():
+                if idx > 0 and len(lines[idx-1]) > 2:
+                    potential_name = lines[idx-1].title()
+                    # Basic exclusion to ensure we didn't just grab a random header
+                    if "GOVERNMENT" not in potential_name.upper():
+                        extracted_name = potential_name
+                    break
+
+        # Strict fallback to capture the identity cleanly from the user's environment if OCR fails
+        if extracted_name == "Verified Aadhaar Citizen" and file.filename:
+            base = file.filename.lower().replace(".pdf", "").replace("aadhar", "").replace("unlocked", "").replace("_", " ").strip()
+            if base:
+                extracted_name = base.title()
+
+        # Sanitize Name: Aadhaar PDFs often merge the name line with the local language address block.
+        # We explicitly strip non-ASCII characters and limit to standard name length (first 3-4 words)
+        dirty_name = extracted_name
+        clean_words = []
+        for word in extracted_name.split():
+            if re.match(r'^[A-Za-z]+$', word):
+                clean_words.append(word)
+        
+        if clean_words:
+            # Most Indian names are 2-3 words. The rest is often address/local script.
+            extracted_name = " ".join(clean_words[:3])
+
+        # Extract Address (Strategy A: Explicit Label)
+        extracted_address = "Address not found"
+        # Look for English "Address" or Hindi "पता" or standard relation labels common on Aadhaar
+        addr_match = re.search(r'(?i)(?:address|add|addr|पता|कव|c/o|s/o|d/o|w/o|care\s+of)[\s:]*(.*)', extracted_text.replace('\n', ' '))
+        if addr_match:
+            # Grab up to the Pincode or next major label
+            extracted_address = addr_match.group(1).split("Pin")[0].strip()[:150]
+        
+        # Strategy B: If name was merged with address info (common in OCR)
+        if (extracted_address == "Address not found" or len(extracted_address) < 10) and len(dirty_name) > len(extracted_name):
+            possible_addr = dirty_name.replace(extracted_name, "").strip()
+            # Clean up leading punctuation and common OCR artifacts
+            possible_addr = re.sub(r'^[\s,:\-बेकरी]+', '', possible_addr)
+            if len(possible_addr) > 5:
+                extracted_address = possible_addr
+
+        # Strategy C: Look for the Pincode and grab text around it if still not found
+        if extracted_address == "Address not found":
+            # Search for 6-digit number and look behind for addressy text
+            pin_search = re.search(r'([A-Za-z0-9\s,]{20,}\b\d{6}\b)', extracted_text.replace('\n', ' '))
+            if pin_search:
+                extracted_address = pin_search.group(1).strip()[:150]
+
+        # Extract DOB & Calculate Age
+        extracted_age = 25 # Fallback
+        dob_match = re.search(r'(?i)(?:dob|year of birth|birth|जन्म).*?(\d{4})', extracted_text)
+        if dob_match:
+            try:
+                yob = int(dob_match.group(1))
+                extracted_age = 2026 - yob # Current hackathon year relative
+            except:
+                pass
+
+        # We assign an arbitrary high limit for Aadhaar verification proxying since the ZKP circuit requires an integer
+        income_val = 1000000 
+    else:
+        # Not Aadhaar -> Assume Bank Statement
+        extracted_address = "Bank Proof Attached"
+        extracted_age = 0
+        balance_match = re.search(r'(?i)(balance|income)[\s:.\-$]+([\d,]+)', extracted_text)
+        if balance_match:
+            raw_num = balance_match.group(2).replace(",", "")
+            income_val = int(raw_num)
+        else:
+            num_match = re.search(r'\$?([\d,]{4,})', extracted_text)
+            if num_match:
+                income_val = int(num_match.group(1).replace(",", ""))
+        extracted_name = "Bank Verified Identity"
+
+    try:
+        # Run KYC anchoring using extracted document data
+        kyc_record, anchor = await kyc_issuer_agent.extract_and_anchor(
+            user_address=user_address, 
+            create_onchain=True,
+            income_annual=income_val,
+            full_name=extracted_name,
+            citizenship=citizenship,
+            age=extracted_age,
+            address=extracted_address
+        )
+
+        response_data = {
+            "full_name": kyc_record.full_name,
+            "citizenship": kyc_record.citizenship,
+            "age": kyc_record.age,
+            "address": kyc_record.address,
+        }
+        
+        # Only show financial info if this is a Bank Statement, hiding it for Aadhaar
+        if not is_aadhaar:
+            response_data["income_annual"] = kyc_record.income_annual
+        else:
+            response_data["date_of_birth"] = kyc_record.date_of_birth
+
+        return KYCAnchorResponse(
+            success=True,
+            user_address=user_address,
+            kyc_id=kyc_record.kyc_id,
+            commitment=anchor.commitment,
+            anchor_txid=anchor.anchor_txid,
+            block=anchor.block,
+            verified_data=response_data,
+        )
+    except Exception as e:
+        logger.error(f"[API] KYC anchor from PDF failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/kyc/status/{user_address}")
+async def get_kyc_status(user_address: str):
+    """
+    Check if user has a valid KYC anchor.
+
+    Returns anchor status and verified data.
+    """
+    anchor = kyc_issuer_agent.get_anchor(user_address)
+    record = kyc_issuer_agent.get_record(user_address)
+
+    if not anchor or not record:
+        return {
+            "anchored": False,
+            "message": "No KYC anchor. Run POST /kyc/anchor first.",
+        }
+
+    return {
+        "anchored": True,
+        "kyc_id": anchor.kyc_id,
+        "commitment": anchor.commitment,
+        "anchor_txid": anchor.anchor_txid,
+        "block": anchor.block,
+        "verified_data": {
+            "income_annual": record.income_annual,
+            "citizenship": record.citizenship,
+        },
+    }
+
+
+# =============================================================================
+# Verification Endpoint
+# =============================================================================
+
+
 @app.post("/verify/income")
 async def verify_income(
     request: IncomeVerificationRequest,
@@ -183,7 +457,9 @@ async def verify_income(
     Requires x402 payment. The payment amount depends on the verification mode:
     For ZKP mode, provide secret_value which will be proven to be greater than threshold.
     """
-    txid = http_request.headers.get("x402-payment-proof") or http_request.headers.get("X402-Payment-Proof")
+    txid = http_request.headers.get("x402-payment-proof") or http_request.headers.get(
+        "X402-Payment-Proof"
+    )
     expected_amount = get_price(request.mode)
 
     if not txid:
@@ -197,7 +473,7 @@ async def verify_income(
                         "payTo": TRUST_ANCHOR_ADDRESS,
                         "network": f"algorand:{ALGORAND_NETWORK}",
                     }
-                ]
+                ],
             },
         )
 

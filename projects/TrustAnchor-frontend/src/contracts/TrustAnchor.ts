@@ -24,7 +24,7 @@ import { SendParams, SendSingleTransactionResult, SendAtomicTransactionComposerR
 import { Address, encodeAddress, modelsv2, OnApplicationComplete, Transaction, TransactionSigner } from 'algosdk'
 import SimulateResponse = modelsv2.SimulateResponse
 
-export const APP_SPEC: Arc56Contract = {"name":"TrustAnchor","structs":{},"methods":[{"name":"hello","args":[{"type":"string","name":"name"}],"returns":{"type":"string"},"actions":{"create":[],"call":["NoOp"]},"readonly":false,"events":[],"recommendations":{}},{"name":"verify","args":[{"type":"uint64","name":"threshold"},{"type":"byte[]","name":"proof_data"}],"returns":{"type":"bool"},"actions":{"create":[],"call":["NoOp"]},"readonly":false,"events":[],"recommendations":{}}],"arcs":[22,28],"networks":{},"state":{"schema":{"global":{"ints":0,"bytes":0},"local":{"ints":0,"bytes":0}},"keys":{"global":{},"local":{},"box":{}},"maps":{"global":{},"local":{},"box":{}}},"bareActions":{"create":["NoOp"],"call":[]},"sourceInfo":{"approval":{"sourceInfo":[{"pc":[53,107],"errorMessage":"invalid array length header"},{"pc":[60,113],"errorMessage":"invalid number of bytes for arc4.dynamic_array<arc4.uint8>"},{"pc":[101],"errorMessage":"invalid number of bytes for arc4.uint64"}],"pcOffsetMethod":"none"},"clear":{"sourceInfo":[],"pcOffsetMethod":"none"}},"source":{"approval":"I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuYXBwcm92YWxfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIGludGNibG9jayAwIDIgMQogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weTo1CiAgICAvLyBjbGFzcyBUcnVzdEFuY2hvcihBUkM0Q29udHJhY3QpOgogICAgdHhuIE51bUFwcEFyZ3MKICAgIGJ6IG1haW5fX19hbGdvcHlfZGVmYXVsdF9jcmVhdGVAOQogICAgdHhuIE9uQ29tcGxldGlvbgogICAgIQogICAgYXNzZXJ0CiAgICB0eG4gQXBwbGljYXRpb25JRAogICAgYXNzZXJ0CiAgICBwdXNoYnl0ZXNzIDB4MDJiZWNlMTEgMHhmNzI3MjJhZiAvLyBtZXRob2QgImhlbGxvKHN0cmluZylzdHJpbmciLCBtZXRob2QgInZlcmlmeSh1aW50NjQsYnl0ZVtdKWJvb2wiCiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAwCiAgICBtYXRjaCBoZWxsbyB2ZXJpZnkKICAgIGVycgoKbWFpbl9fX2FsZ29weV9kZWZhdWx0X2NyZWF0ZUA5OgogICAgdHhuIE9uQ29tcGxldGlvbgogICAgIQogICAgdHhuIEFwcGxpY2F0aW9uSUQKICAgICEKICAgICYmCiAgICByZXR1cm4KCgovLyBzbWFydF9jb250cmFjdHMudHJ1c3RfYW5jaG9yLmNvbnRyYWN0LlRydXN0QW5jaG9yLmhlbGxvW3JvdXRpbmddKCkgLT4gdm9pZDoKaGVsbG86CiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjYKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgZHVwCiAgICBpbnRjXzAgLy8gMAogICAgZXh0cmFjdF91aW50MTYgLy8gb24gZXJyb3I6IGludmFsaWQgYXJyYXkgbGVuZ3RoIGhlYWRlcgogICAgaW50Y18xIC8vIDIKICAgICsKICAgIGRpZyAxCiAgICBsZW4KICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuZHluYW1pY19hcnJheTxhcmM0LnVpbnQ4PgogICAgZXh0cmFjdCAyIDAKICAgIC8vIHNtYXJ0X2NvbnRyYWN0cy90cnVzdF9hbmNob3IvY29udHJhY3QucHk6OAogICAgLy8gcmV0dXJuICJIZWxsbywgIiArIG5hbWUKICAgIHB1c2hieXRlcyAiSGVsbG8sICIKICAgIHN3YXAKICAgIGNvbmNhdAogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weTo2CiAgICAvLyBAYWJpbWV0aG9kKCkKICAgIGR1cAogICAgbGVuCiAgICBpdG9iCiAgICBleHRyYWN0IDYgMgogICAgc3dhcAogICAgY29uY2F0CiAgICBwdXNoYnl0ZXMgMHgxNTFmN2M3NQogICAgc3dhcAogICAgY29uY2F0CiAgICBsb2cKICAgIGludGNfMiAvLyAxCiAgICByZXR1cm4KCgovLyBzbWFydF9jb250cmFjdHMudHJ1c3RfYW5jaG9yLmNvbnRyYWN0LlRydXN0QW5jaG9yLnZlcmlmeVtyb3V0aW5nXSgpIC0+IHZvaWQ6CnZlcmlmeToKICAgIC8vIHNtYXJ0X2NvbnRyYWN0cy90cnVzdF9hbmNob3IvY29udHJhY3QucHk6MTAKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgbGVuCiAgICBwdXNoaW50IDgKICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQudWludDY0CiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAyCiAgICBkdXAKICAgIGludGNfMCAvLyAwCiAgICBleHRyYWN0X3VpbnQxNiAvLyBvbiBlcnJvcjogaW52YWxpZCBhcnJheSBsZW5ndGggaGVhZGVyCiAgICBpbnRjXzEgLy8gMgogICAgKwogICAgc3dhcAogICAgbGVuCiAgICA9PQogICAgYXNzZXJ0IC8vIGludmFsaWQgbnVtYmVyIG9mIGJ5dGVzIGZvciBhcmM0LmR5bmFtaWNfYXJyYXk8YXJjNC51aW50OD4KICAgIHB1c2hieXRlcyAweDE1MWY3Yzc1ODAKICAgIGxvZwogICAgaW50Y18yIC8vIDEKICAgIHJldHVybgo=","clear":"I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuY2xlYXJfc3RhdGVfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIHB1c2hpbnQgMQogICAgcmV0dXJuCg=="},"byteCode":{"approval":"CyADAAIBMRtBAB0xGRREMRhEggIEAr7OEQT3JyKvNhoAjgIACQA3ADEZFDEYFBBDNhoBSSJZIwhLARUSRFcCAIAHSGVsbG8sIExQSRUWVwYCTFCABBUffHVMULAkQzYaARWBCBJENhoCSSJZIwhMFRJEgAUVH3x1gLAkQw==","clear":"C4EBQw=="},"compilerInfo":{"compiler":"puya","compilerVersion":{"major":5,"minor":8,"patch":0}},"events":[],"templateVariables":{}} as unknown as Arc56Contract
+export const APP_SPEC: Arc56Contract = {"name":"TrustAnchor","structs":{},"methods":[{"name":"anchor_identity","args":[{"type":"byte[]","name":"user_address"},{"type":"byte[]","name":"commitment"}],"returns":{"type":"bool"},"actions":{"create":[],"call":["NoOp"]},"readonly":false,"events":[],"recommendations":{}},{"name":"get_commitment","args":[{"type":"byte[]","name":"user_address"}],"returns":{"type":"byte[]"},"actions":{"create":[],"call":["NoOp"]},"readonly":false,"events":[],"recommendations":{}},{"name":"verify","args":[{"type":"uint64","name":"threshold"},{"type":"byte[]","name":"proof_data"}],"returns":{"type":"bool"},"actions":{"create":[],"call":["NoOp"]},"readonly":false,"events":[],"recommendations":{}}],"arcs":[22,28],"networks":{},"state":{"schema":{"global":{"ints":0,"bytes":0},"local":{"ints":0,"bytes":0}},"keys":{"global":{},"local":{},"box":{}},"maps":{"global":{},"local":{},"box":{"anchors":{"keyType":"byte[]","valueType":"byte[]","prefix":"YW5jaG9yXw=="}}}},"bareActions":{"create":["NoOp"],"call":[]},"sourceInfo":{"approval":{"sourceInfo":[{"pc":[127],"errorMessage":"check self.anchors entry exists"},{"pc":[76,89,115,152],"errorMessage":"invalid array length header"},{"pc":[83,96,122,158],"errorMessage":"invalid number of bytes for arc4.dynamic_array<arc4.uint8>"},{"pc":[146],"errorMessage":"invalid number of bytes for arc4.uint64"}],"pcOffsetMethod":"none"},"clear":{"sourceInfo":[],"pcOffsetMethod":"none"}},"source":{"approval":"I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuYXBwcm92YWxfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIGludGNibG9jayAwIDIgMQogICAgYnl0ZWNibG9jayAiYW5jaG9yXyIgMHgxNTFmN2M3NTgwCiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjUKICAgIC8vIGNsYXNzIFRydXN0QW5jaG9yKEFSQzRDb250cmFjdCk6CiAgICB0eG4gTnVtQXBwQXJncwogICAgYnogbWFpbl9fX2FsZ29weV9kZWZhdWx0X2NyZWF0ZUAxMgogICAgdHhuIE9uQ29tcGxldGlvbgogICAgIQogICAgYXNzZXJ0CiAgICB0eG4gQXBwbGljYXRpb25JRAogICAgYXNzZXJ0CiAgICBwdXNoYnl0ZXNzIDB4ZDhiOGEyYmIgMHgwNDRjMjFhYSAweGY3MjcyMmFmIC8vIG1ldGhvZCAiYW5jaG9yX2lkZW50aXR5KGJ5dGVbXSxieXRlW10pYm9vbCIsIG1ldGhvZCAiZ2V0X2NvbW1pdG1lbnQoYnl0ZVtdKWJ5dGVbXSIsIG1ldGhvZCAidmVyaWZ5KHVpbnQ2NCxieXRlW10pYm9vbCIKICAgIHR4bmEgQXBwbGljYXRpb25BcmdzIDAKICAgIG1hdGNoIGFuY2hvcl9pZGVudGl0eSBnZXRfY29tbWl0bWVudCB2ZXJpZnkKICAgIGVycgoKbWFpbl9fX2FsZ29weV9kZWZhdWx0X2NyZWF0ZUAxMjoKICAgIHR4biBPbkNvbXBsZXRpb24KICAgICEKICAgIHR4biBBcHBsaWNhdGlvbklECiAgICAhCiAgICAmJgogICAgcmV0dXJuCgoKLy8gc21hcnRfY29udHJhY3RzLnRydXN0X2FuY2hvci5jb250cmFjdC5UcnVzdEFuY2hvci5hbmNob3JfaWRlbnRpdHlbcm91dGluZ10oKSAtPiB2b2lkOgphbmNob3JfaWRlbnRpdHk6CiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjkKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgZHVwCiAgICBpbnRjXzAgLy8gMAogICAgZXh0cmFjdF91aW50MTYgLy8gb24gZXJyb3I6IGludmFsaWQgYXJyYXkgbGVuZ3RoIGhlYWRlcgogICAgaW50Y18xIC8vIDIKICAgICsKICAgIGRpZyAxCiAgICBsZW4KICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuZHluYW1pY19hcnJheTxhcmM0LnVpbnQ4PgogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMgogICAgZHVwCiAgICBpbnRjXzAgLy8gMAogICAgZXh0cmFjdF91aW50MTYgLy8gb24gZXJyb3I6IGludmFsaWQgYXJyYXkgbGVuZ3RoIGhlYWRlcgogICAgaW50Y18xIC8vIDIKICAgICsKICAgIGRpZyAxCiAgICBsZW4KICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuZHluYW1pY19hcnJheTxhcmM0LnVpbnQ4PgogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weToxNQogICAgLy8gc2VsZi5hbmNob3JzW3VzZXJfYWRkcmVzcy5jb3B5KCldID0gY29tbWl0bWVudC5jb3B5KCkKICAgIGJ5dGVjXzAgLy8gImFuY2hvcl8iCiAgICB1bmNvdmVyIDIKICAgIGNvbmNhdAogICAgZHVwCiAgICBib3hfZGVsCiAgICBwb3AKICAgIHN3YXAKICAgIGJveF9wdXQKICAgIC8vIHNtYXJ0X2NvbnRyYWN0cy90cnVzdF9hbmNob3IvY29udHJhY3QucHk6OQogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBieXRlY18xIC8vIDB4MTUxZjdjNzU4MAogICAgbG9nCiAgICBpbnRjXzIgLy8gMQogICAgcmV0dXJuCgoKLy8gc21hcnRfY29udHJhY3RzLnRydXN0X2FuY2hvci5jb250cmFjdC5UcnVzdEFuY2hvci5nZXRfY29tbWl0bWVudFtyb3V0aW5nXSgpIC0+IHZvaWQ6CmdldF9jb21taXRtZW50OgogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weToxOAogICAgLy8gQGFiaW1ldGhvZCgpCiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAxCiAgICBkdXAKICAgIGludGNfMCAvLyAwCiAgICBleHRyYWN0X3VpbnQxNiAvLyBvbiBlcnJvcjogaW52YWxpZCBhcnJheSBsZW5ndGggaGVhZGVyCiAgICBpbnRjXzEgLy8gMgogICAgKwogICAgZGlnIDEKICAgIGxlbgogICAgPT0KICAgIGFzc2VydCAvLyBpbnZhbGlkIG51bWJlciBvZiBieXRlcyBmb3IgYXJjNC5keW5hbWljX2FycmF5PGFyYzQudWludDg+CiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjIwCiAgICAvLyByZXR1cm4gc2VsZi5hbmNob3JzW3VzZXJfYWRkcmVzcy5jb3B5KCldCiAgICBieXRlY18wIC8vICJhbmNob3JfIgogICAgc3dhcAogICAgY29uY2F0CiAgICBib3hfZ2V0CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5hbmNob3JzIGVudHJ5IGV4aXN0cwogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weToxOAogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBwdXNoYnl0ZXMgMHgxNTFmN2M3NQogICAgc3dhcAogICAgY29uY2F0CiAgICBsb2cKICAgIGludGNfMiAvLyAxCiAgICByZXR1cm4KCgovLyBzbWFydF9jb250cmFjdHMudHJ1c3RfYW5jaG9yLmNvbnRyYWN0LlRydXN0QW5jaG9yLnZlcmlmeVtyb3V0aW5nXSgpIC0+IHZvaWQ6CnZlcmlmeToKICAgIC8vIHNtYXJ0X2NvbnRyYWN0cy90cnVzdF9hbmNob3IvY29udHJhY3QucHk6MjIKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgbGVuCiAgICBwdXNoaW50IDgKICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQudWludDY0CiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAyCiAgICBkdXAKICAgIGludGNfMCAvLyAwCiAgICBleHRyYWN0X3VpbnQxNiAvLyBvbiBlcnJvcjogaW52YWxpZCBhcnJheSBsZW5ndGggaGVhZGVyCiAgICBpbnRjXzEgLy8gMgogICAgKwogICAgc3dhcAogICAgbGVuCiAgICA9PQogICAgYXNzZXJ0IC8vIGludmFsaWQgbnVtYmVyIG9mIGJ5dGVzIGZvciBhcmM0LmR5bmFtaWNfYXJyYXk8YXJjNC51aW50OD4KICAgIGJ5dGVjXzEgLy8gMHgxNTFmN2M3NTgwCiAgICBsb2cKICAgIGludGNfMiAvLyAxCiAgICByZXR1cm4K","clear":"I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuY2xlYXJfc3RhdGVfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIHB1c2hpbnQgMQogICAgcmV0dXJuCg=="},"byteCode":{"approval":"CyADAAIBJgIHYW5jaG9yXwUVH3x1gDEbQQAkMRkURDEYRIIDBNi4orsEBEwhqgT3JyKvNhoAjgMACQAwAE0AMRkUMRgUEEM2GgFJIlkjCEsBFRJENhoCSSJZIwhLARUSRChPAlBJvEhMvymwJEM2GgFJIlkjCEsBFRJEKExQvkSABBUffHVMULAkQzYaARWBCBJENhoCSSJZIwhMFRJEKbAkQw==","clear":"C4EBQw=="},"compilerInfo":{"compiler":"puya","compilerVersion":{"major":5,"minor":8,"patch":0}},"events":[],"templateVariables":{}} as unknown as Arc56Contract
 
 /**
  * A state record containing binary data
@@ -71,8 +71,12 @@ export type TrustAnchorArgs = {
    * The object representation of the arguments for each method
    */
   obj: {
-    'hello(string)string': {
-      name: string
+    'anchor_identity(byte[],byte[])bool': {
+      userAddress: Uint8Array
+      commitment: Uint8Array
+    }
+    'get_commitment(byte[])byte[]': {
+      userAddress: Uint8Array
     }
     'verify(uint64,byte[])bool': {
       threshold: bigint | number
@@ -83,7 +87,8 @@ export type TrustAnchorArgs = {
    * The tuple representation of the arguments for each method
    */
   tuple: {
-    'hello(string)string': [name: string]
+    'anchor_identity(byte[],byte[])bool': [userAddress: Uint8Array, commitment: Uint8Array]
+    'get_commitment(byte[])byte[]': [userAddress: Uint8Array]
     'verify(uint64,byte[])bool': [threshold: bigint | number, proofData: Uint8Array]
   }
 }
@@ -92,7 +97,8 @@ export type TrustAnchorArgs = {
  * The return type for each method
  */
 export type TrustAnchorReturns = {
-  'hello(string)string': string
+  'anchor_identity(byte[],byte[])bool': boolean
+  'get_commitment(byte[])byte[]': Uint8Array
   'verify(uint64,byte[])bool': boolean
 }
 
@@ -104,16 +110,32 @@ export type TrustAnchorTypes = {
    * Maps method signatures / names to their argument and return types.
    */
   methods:
-    & Record<'hello(string)string' | 'hello', {
-      argsObj: TrustAnchorArgs['obj']['hello(string)string']
-      argsTuple: TrustAnchorArgs['tuple']['hello(string)string']
-      returns: TrustAnchorReturns['hello(string)string']
+    & Record<'anchor_identity(byte[],byte[])bool' | 'anchor_identity', {
+      argsObj: TrustAnchorArgs['obj']['anchor_identity(byte[],byte[])bool']
+      argsTuple: TrustAnchorArgs['tuple']['anchor_identity(byte[],byte[])bool']
+      returns: TrustAnchorReturns['anchor_identity(byte[],byte[])bool']
+    }>
+    & Record<'get_commitment(byte[])byte[]' | 'get_commitment', {
+      argsObj: TrustAnchorArgs['obj']['get_commitment(byte[])byte[]']
+      argsTuple: TrustAnchorArgs['tuple']['get_commitment(byte[])byte[]']
+      returns: TrustAnchorReturns['get_commitment(byte[])byte[]']
     }>
     & Record<'verify(uint64,byte[])bool' | 'verify', {
       argsObj: TrustAnchorArgs['obj']['verify(uint64,byte[])bool']
       argsTuple: TrustAnchorArgs['tuple']['verify(uint64,byte[])bool']
       returns: TrustAnchorReturns['verify(uint64,byte[])bool']
     }>
+  /**
+   * Defines the shape of the state of the application.
+   */
+  state: {
+    box: {
+      keys: {}
+      maps: {
+        anchors: Map<Uint8Array, Uint8Array>
+      }
+    }
+  }
 }
 
 /**
@@ -143,6 +165,11 @@ export type MethodArgs<TSignature extends TrustAnchorSignatures> = TrustAnchorTy
  */
 export type MethodReturn<TSignature extends TrustAnchorSignatures> = TrustAnchorTypes['methods'][TSignature]['returns']
 
+/**
+ * Defines the shape of the keyed box state of the application.
+ */
+export type BoxKeysState = TrustAnchorTypes['state']['box']['keys']
+
 
 /**
  * Defines supported create method params for this smart contract
@@ -165,16 +192,29 @@ export type TrustAnchorDeployParams = Expand<Omit<AppFactoryDeployParams, 'creat
  */
 export abstract class TrustAnchorParamsFactory {
   /**
-   * Constructs a no op call for the hello(string)string ABI method
+   * Constructs a no op call for the anchor_identity(byte[],byte[])bool ABI method
    *
    * @param params Parameters for the call
    * @returns An `AppClientMethodCallParams` object for the call
    */
-  static hello(params: CallParams<TrustAnchorArgs['obj']['hello(string)string'] | TrustAnchorArgs['tuple']['hello(string)string']> & CallOnComplete): AppClientMethodCallParams & CallOnComplete {
+  static anchorIdentity(params: CallParams<TrustAnchorArgs['obj']['anchor_identity(byte[],byte[])bool'] | TrustAnchorArgs['tuple']['anchor_identity(byte[],byte[])bool']> & CallOnComplete): AppClientMethodCallParams & CallOnComplete {
     return {
       ...params,
-      method: 'hello(string)string' as const,
-      args: Array.isArray(params.args) ? params.args : [params.args.name],
+      method: 'anchor_identity(byte[],byte[])bool' as const,
+      args: Array.isArray(params.args) ? params.args : [params.args.userAddress, params.args.commitment],
+    }
+  }
+  /**
+   * Constructs a no op call for the get_commitment(byte[])byte[] ABI method
+   *
+   * @param params Parameters for the call
+   * @returns An `AppClientMethodCallParams` object for the call
+   */
+  static getCommitment(params: CallParams<TrustAnchorArgs['obj']['get_commitment(byte[])byte[]'] | TrustAnchorArgs['tuple']['get_commitment(byte[])byte[]']> & CallOnComplete): AppClientMethodCallParams & CallOnComplete {
+    return {
+      ...params,
+      method: 'get_commitment(byte[])byte[]' as const,
+      args: Array.isArray(params.args) ? params.args : [params.args.userAddress],
     }
   }
   /**
@@ -431,13 +471,23 @@ export class TrustAnchorClient {
     },
 
     /**
-     * Makes a call to the TrustAnchor smart contract using the `hello(string)string` ABI method.
+     * Makes a call to the TrustAnchor smart contract using the `anchor_identity(byte[],byte[])bool` ABI method.
      *
      * @param params The params for the smart contract call
      * @returns The call params
      */
-    hello: (params: CallParams<TrustAnchorArgs['obj']['hello(string)string'] | TrustAnchorArgs['tuple']['hello(string)string']> & {onComplete?: OnApplicationComplete.NoOpOC}) => {
-      return this.appClient.params.call(TrustAnchorParamsFactory.hello(params))
+    anchorIdentity: (params: CallParams<TrustAnchorArgs['obj']['anchor_identity(byte[],byte[])bool'] | TrustAnchorArgs['tuple']['anchor_identity(byte[],byte[])bool']> & {onComplete?: OnApplicationComplete.NoOpOC}) => {
+      return this.appClient.params.call(TrustAnchorParamsFactory.anchorIdentity(params))
+    },
+
+    /**
+     * Makes a call to the TrustAnchor smart contract using the `get_commitment(byte[])byte[]` ABI method.
+     *
+     * @param params The params for the smart contract call
+     * @returns The call params
+     */
+    getCommitment: (params: CallParams<TrustAnchorArgs['obj']['get_commitment(byte[])byte[]'] | TrustAnchorArgs['tuple']['get_commitment(byte[])byte[]']> & {onComplete?: OnApplicationComplete.NoOpOC}) => {
+      return this.appClient.params.call(TrustAnchorParamsFactory.getCommitment(params))
     },
 
     /**
@@ -467,13 +517,23 @@ export class TrustAnchorClient {
     },
 
     /**
-     * Makes a call to the TrustAnchor smart contract using the `hello(string)string` ABI method.
+     * Makes a call to the TrustAnchor smart contract using the `anchor_identity(byte[],byte[])bool` ABI method.
      *
      * @param params The params for the smart contract call
      * @returns The call transaction
      */
-    hello: (params: CallParams<TrustAnchorArgs['obj']['hello(string)string'] | TrustAnchorArgs['tuple']['hello(string)string']> & {onComplete?: OnApplicationComplete.NoOpOC}) => {
-      return this.appClient.createTransaction.call(TrustAnchorParamsFactory.hello(params))
+    anchorIdentity: (params: CallParams<TrustAnchorArgs['obj']['anchor_identity(byte[],byte[])bool'] | TrustAnchorArgs['tuple']['anchor_identity(byte[],byte[])bool']> & {onComplete?: OnApplicationComplete.NoOpOC}) => {
+      return this.appClient.createTransaction.call(TrustAnchorParamsFactory.anchorIdentity(params))
+    },
+
+    /**
+     * Makes a call to the TrustAnchor smart contract using the `get_commitment(byte[])byte[]` ABI method.
+     *
+     * @param params The params for the smart contract call
+     * @returns The call transaction
+     */
+    getCommitment: (params: CallParams<TrustAnchorArgs['obj']['get_commitment(byte[])byte[]'] | TrustAnchorArgs['tuple']['get_commitment(byte[])byte[]']> & {onComplete?: OnApplicationComplete.NoOpOC}) => {
+      return this.appClient.createTransaction.call(TrustAnchorParamsFactory.getCommitment(params))
     },
 
     /**
@@ -503,14 +563,25 @@ export class TrustAnchorClient {
     },
 
     /**
-     * Makes a call to the TrustAnchor smart contract using the `hello(string)string` ABI method.
+     * Makes a call to the TrustAnchor smart contract using the `anchor_identity(byte[],byte[])bool` ABI method.
      *
      * @param params The params for the smart contract call
      * @returns The call result
      */
-    hello: async (params: CallParams<TrustAnchorArgs['obj']['hello(string)string'] | TrustAnchorArgs['tuple']['hello(string)string']> & SendParams & {onComplete?: OnApplicationComplete.NoOpOC}) => {
-      const result = await this.appClient.send.call(TrustAnchorParamsFactory.hello(params))
-      return {...result, return: result.return as unknown as (undefined | TrustAnchorReturns['hello(string)string'])}
+    anchorIdentity: async (params: CallParams<TrustAnchorArgs['obj']['anchor_identity(byte[],byte[])bool'] | TrustAnchorArgs['tuple']['anchor_identity(byte[],byte[])bool']> & SendParams & {onComplete?: OnApplicationComplete.NoOpOC}) => {
+      const result = await this.appClient.send.call(TrustAnchorParamsFactory.anchorIdentity(params))
+      return {...result, return: result.return as unknown as (undefined | TrustAnchorReturns['anchor_identity(byte[],byte[])bool'])}
+    },
+
+    /**
+     * Makes a call to the TrustAnchor smart contract using the `get_commitment(byte[])byte[]` ABI method.
+     *
+     * @param params The params for the smart contract call
+     * @returns The call result
+     */
+    getCommitment: async (params: CallParams<TrustAnchorArgs['obj']['get_commitment(byte[])byte[]'] | TrustAnchorArgs['tuple']['get_commitment(byte[])byte[]']> & SendParams & {onComplete?: OnApplicationComplete.NoOpOC}) => {
+      const result = await this.appClient.send.call(TrustAnchorParamsFactory.getCommitment(params))
+      return {...result, return: result.return as unknown as (undefined | TrustAnchorReturns['get_commitment(byte[])byte[]'])}
     },
 
     /**
@@ -540,6 +611,32 @@ export class TrustAnchorClient {
    * Methods to access state for the current TrustAnchor app
    */
   state = {
+    /**
+     * Methods to access box state for the current TrustAnchor app
+     */
+    box: {
+      /**
+       * Get all current keyed values from box state
+       */
+      getAll: async (): Promise<Partial<Expand<BoxKeysState>>> => {
+        const result = await this.appClient.state.box.getAll()
+        return {
+        }
+      },
+      /**
+       * Get values from the anchors map in box state
+       */
+      anchors: {
+        /**
+         * Get all current values of the anchors map in box state
+         */
+        getMap: async (): Promise<Map<Uint8Array, Uint8Array>> => { return (await this.appClient.state.box.getMap("anchors")) as Map<Uint8Array, Uint8Array> },
+        /**
+         * Get a current value of the anchors map by key from box state
+         */
+        value: async (key: Uint8Array): Promise<Uint8Array | undefined> => { return await this.appClient.state.box.getMapValue("anchors", key) as Uint8Array | undefined },
+      },
+    },
   }
 
   public newGroup(): TrustAnchorComposer {
@@ -549,11 +646,19 @@ export class TrustAnchorClient {
     const resultMappers: Array<undefined | ((x: ABIReturn | undefined) => any)> = []
     return {
       /**
-       * Add a hello(string)string method call against the TrustAnchor contract
+       * Add a anchor_identity(byte[],byte[])bool method call against the TrustAnchor contract
        */
-      hello(params: CallParams<TrustAnchorArgs['obj']['hello(string)string'] | TrustAnchorArgs['tuple']['hello(string)string']> & {onComplete?: OnApplicationComplete.NoOpOC}) {
-        promiseChain = promiseChain.then(async () => composer.addAppCallMethodCall(await client.params.hello(params)))
-        resultMappers.push((v) => client.decodeReturnValue('hello(string)string', v))
+      anchorIdentity(params: CallParams<TrustAnchorArgs['obj']['anchor_identity(byte[],byte[])bool'] | TrustAnchorArgs['tuple']['anchor_identity(byte[],byte[])bool']> & {onComplete?: OnApplicationComplete.NoOpOC}) {
+        promiseChain = promiseChain.then(async () => composer.addAppCallMethodCall(await client.params.anchorIdentity(params)))
+        resultMappers.push((v) => client.decodeReturnValue('anchor_identity(byte[],byte[])bool', v))
+        return this
+      },
+      /**
+       * Add a get_commitment(byte[])byte[] method call against the TrustAnchor contract
+       */
+      getCommitment(params: CallParams<TrustAnchorArgs['obj']['get_commitment(byte[])byte[]'] | TrustAnchorArgs['tuple']['get_commitment(byte[])byte[]']> & {onComplete?: OnApplicationComplete.NoOpOC}) {
+        promiseChain = promiseChain.then(async () => composer.addAppCallMethodCall(await client.params.getCommitment(params)))
+        resultMappers.push((v) => client.decodeReturnValue('get_commitment(byte[])byte[]', v))
         return this
       },
       /**
@@ -600,13 +705,22 @@ export class TrustAnchorClient {
 }
 export type TrustAnchorComposer<TReturns extends [...any[]] = []> = {
   /**
-   * Calls the hello(string)string ABI method.
+   * Calls the anchor_identity(byte[],byte[])bool ABI method.
    *
    * @param args The arguments for the contract call
    * @param params Any additional parameters for the call
    * @returns The typed transaction composer so you can fluently chain multiple calls or call execute to execute all queued up transactions
    */
-  hello(params?: CallParams<TrustAnchorArgs['obj']['hello(string)string'] | TrustAnchorArgs['tuple']['hello(string)string']>): TrustAnchorComposer<[...TReturns, TrustAnchorReturns['hello(string)string'] | undefined]>
+  anchorIdentity(params?: CallParams<TrustAnchorArgs['obj']['anchor_identity(byte[],byte[])bool'] | TrustAnchorArgs['tuple']['anchor_identity(byte[],byte[])bool']>): TrustAnchorComposer<[...TReturns, TrustAnchorReturns['anchor_identity(byte[],byte[])bool'] | undefined]>
+
+  /**
+   * Calls the get_commitment(byte[])byte[] ABI method.
+   *
+   * @param args The arguments for the contract call
+   * @param params Any additional parameters for the call
+   * @returns The typed transaction composer so you can fluently chain multiple calls or call execute to execute all queued up transactions
+   */
+  getCommitment(params?: CallParams<TrustAnchorArgs['obj']['get_commitment(byte[])byte[]'] | TrustAnchorArgs['tuple']['get_commitment(byte[])byte[]']>): TrustAnchorComposer<[...TReturns, TrustAnchorReturns['get_commitment(byte[])byte[]'] | undefined]>
 
   /**
    * Calls the verify(uint64,byte[])bool ABI method.
