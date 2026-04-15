@@ -12,7 +12,6 @@ ENV/
 *.p12
 
 keys/
-circuits/
 
 .pytest_cache/
 .mypy_cache/

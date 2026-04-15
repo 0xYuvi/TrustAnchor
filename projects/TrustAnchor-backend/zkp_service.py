@@ -53,7 +53,13 @@ class ZKPService:
         keys_dir: Optional[str] = None,
         http_prover_url: Optional[str] = None,
     ):
-        base_dir = Path(__file__).parent.parent.parent / "circuits"
+        # 1. Try local dev monorepo root
+        root_circuits = Path(__file__).resolve().parent.parent.parent / "circuits"
+        # 2. Try nested deployment (self-contained)
+        nested_circuits = Path(__file__).resolve().parent / "circuits"
+        
+        base_dir = root_circuits if root_circuits.exists() else nested_circuits
+        
         self.prove_binary_path = prove_binary_path or os.getenv(
             "ZKP_PROVE_BINARY", str(base_dir / "prover")
         )
