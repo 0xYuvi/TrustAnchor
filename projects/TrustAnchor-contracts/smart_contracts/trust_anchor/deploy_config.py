@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 # define deployment behaviour based on supplied app spec
 def deploy() -> None:
+    # From the actual contract
     from smart_contracts.artifacts.trust_anchor.trust_anchor_client import (
-        HelloArgs,
         TrustAnchorFactory,
     )
 
@@ -36,9 +36,8 @@ def deploy() -> None:
             )
         )
 
-    name = "world"
-    response = app_client.send.hello(args=HelloArgs(name=name))
+    # Sanity call to 'verify'
+    response = app_client.send.verify(args=(0, b""))
     logger.info(
-        f"Called hello on {app_client.app_name} ({app_client.app_id}) "
-        f"with name={name}, received: {response.abi_return}"
+        f"Verified state on {app_client.app_name} ({app_client.app_id}): {response.abi_return}"
     )

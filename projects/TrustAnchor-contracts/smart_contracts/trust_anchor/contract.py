@@ -7,12 +7,12 @@ class TrustAnchor(ARC4Contract):
         self.anchors = BoxMap(DynamicBytes, DynamicBytes, key_prefix="anchor_")
 
     @abimethod()
-    def anchor_identity(
+    def register_anchor(
         self,
-        user_address: DynamicBytes,
+        trait_id: DynamicBytes,
         commitment: DynamicBytes,
     ) -> Bool:
-        self.anchors[user_address.copy()] = commitment.copy()
+        self.anchors[trait_id.copy()] = commitment.copy()
         return Bool(True)
 
     @abimethod()

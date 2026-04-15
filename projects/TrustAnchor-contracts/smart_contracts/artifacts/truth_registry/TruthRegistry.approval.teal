@@ -1,0 +1,512 @@
+#pragma version 11
+#pragma typetrack false
+
+// algopy.arc4.ARC4Contract.approval_program() -> uint64:
+main:
+    intcblock 0 1 2 8
+    bytecblock 0x151f7c75 "anchor_count" "anchor_" 0x00 "identity_registry_app_id" "proof_" "verifier_app_id"
+    txn ApplicationID
+    bnz main_after_if_else@2
+    // smart_contracts/truth_registry/contract.py:27
+    // self.identity_registry_app_id = UInt64(0)
+    bytec 4 // "identity_registry_app_id"
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/truth_registry/contract.py:28
+    // self.anchor_count = UInt64(0)
+    bytec_1 // "anchor_count"
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/truth_registry/contract.py:30
+    // self.verifier_app_id = UInt64(0)
+    bytec 6 // "verifier_app_id"
+    intc_0 // 0
+    app_global_put
+
+main_after_if_else@2:
+    // smart_contracts/truth_registry/contract.py:25
+    // class TruthRegistry(ARC4Contract):
+    txn OnCompletion
+    !
+    assert
+    txn ApplicationID
+    bz main_create_NoOp@14
+    pushbytess 0xd65db193 0x24168ea3 0xd15e3491 0xa1aec8af 0x5504b60a 0x044c21aa 0xe8fe6833 0xb275b539 // method "set_verifier(uint64)void", method "register_anchor(byte[],byte[])void", method "verify_zk_claim(byte[],byte[],uint64,uint8[32])bool", method "get_proof_status(byte[])(byte[],uint64,uint8[32],bool,uint64)", method "is_proof_verified(byte[])bool", method "get_commitment(byte[])byte[]", method "is_trait_registered(byte[])bool", method "get_anchor_count()uint64"
+    txna ApplicationArgs 0
+    match set_verifier register_anchor verify_zk_claim get_proof_status is_proof_verified get_commitment is_trait_registered get_anchor_count
+    err
+
+main_create_NoOp@14:
+    // smart_contracts/truth_registry/contract.py:25
+    // class TruthRegistry(ARC4Contract):
+    pushbytes 0x240d2f67 // method "create(uint64)void"
+    txna ApplicationArgs 0
+    match create
+    err
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.create[routing]() -> void:
+create:
+    // smart_contracts/truth_registry/contract.py:33
+    // @arc4.abimethod(create="require")
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    // smart_contracts/truth_registry/contract.py:35
+    // self.identity_registry_app_id = identity_registry_app_id.native
+    btoi
+    bytec 4 // "identity_registry_app_id"
+    swap
+    app_global_put
+    // smart_contracts/truth_registry/contract.py:36
+    // self.anchor_count = UInt64(0)
+    bytec_1 // "anchor_count"
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/truth_registry/contract.py:33
+    // @arc4.abimethod(create="require")
+    intc_1 // 1
+    return
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.set_verifier[routing]() -> void:
+set_verifier:
+    // smart_contracts/truth_registry/contract.py:38
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    // smart_contracts/truth_registry/contract.py:40
+    // assert Txn.sender == Global.creator_address, "Only creator can set verifier"
+    txn Sender
+    global CreatorAddress
+    ==
+    assert // Only creator can set verifier
+    // smart_contracts/truth_registry/contract.py:41
+    // self.verifier_app_id = verifier_app_id.native
+    btoi
+    bytec 6 // "verifier_app_id"
+    swap
+    app_global_put
+    // smart_contracts/truth_registry/contract.py:38
+    // @arc4.abimethod
+    intc_1 // 1
+    return
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.register_anchor[routing]() -> void:
+register_anchor:
+    // smart_contracts/truth_registry/contract.py:52
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/truth_registry/contract.py:58
+    // assert self._is_registered_institution(arc4.Address(Txn.sender.bytes)), (
+    txn Sender
+    callsub _is_registered_institution
+    // smart_contracts/truth_registry/contract.py:58-60
+    // assert self._is_registered_institution(arc4.Address(Txn.sender.bytes)), (
+    //     "Caller must be a registered institution"
+    // )
+    assert // Caller must be a registered institution
+    // smart_contracts/truth_registry/contract.py:62
+    // assert trait_id not in self.anchors, "Trait ID already registered"
+    bytec_2 // "anchor_"
+    uncover 2
+    concat
+    dup
+    box_len
+    bury 1
+    !
+    assert // Trait ID already registered
+    // smart_contracts/truth_registry/contract.py:64
+    // self.anchors[trait_id.copy()] = commitment.copy()
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // smart_contracts/truth_registry/contract.py:65
+    // self.anchor_count += UInt64(1)
+    intc_0 // 0
+    bytec_1 // "anchor_count"
+    app_global_get_ex
+    assert // check self.anchor_count exists
+    intc_1 // 1
+    +
+    bytec_1 // "anchor_count"
+    swap
+    app_global_put
+    // smart_contracts/truth_registry/contract.py:52
+    // @arc4.abimethod
+    intc_1 // 1
+    return
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.verify_zk_claim[routing]() -> void:
+verify_zk_claim:
+    // smart_contracts/truth_registry/contract.py:67
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 3
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    txna ApplicationArgs 4
+    dup
+    len
+    pushint 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // smart_contracts/truth_registry/contract.py:79
+    // sender = Txn.sender
+    txn Sender
+    // smart_contracts/truth_registry/contract.py:81-82
+    // # 1. Ensure caller is a registered institution
+    // assert self._is_registered_institution(arc4.Address(sender.bytes)), "Caller must be a registered institution"
+    callsub _is_registered_institution
+    assert // Caller must be a registered institution
+    // smart_contracts/truth_registry/contract.py:84-85
+    // # 2. Ensure the trait is actually registered and matches the commitment
+    // assert trait_id in self.anchors, "Trait ID not registered"
+    bytec_2 // "anchor_"
+    uncover 4
+    concat
+    box_len
+    bury 1
+    assert // Trait ID not registered
+    // smart_contracts/truth_registry/contract.py:93
+    // submitted_at_round=arc4.UInt64(Global.round),
+    global Round
+    itob
+    // smart_contracts/truth_registry/contract.py:87-94
+    // # 3. Store the verification status
+    // status = ZKProofStatus(
+    //     proof_id=proof_id.copy(),
+    //     threshold=threshold,
+    //     proof_hash=proof_hash.copy(),
+    //     is_verified=arc4.Bool(True),
+    //     submitted_at_round=arc4.UInt64(Global.round),
+    // )
+    pushbytes 0x0033
+    uncover 3
+    concat
+    uncover 2
+    concat
+    // smart_contracts/truth_registry/contract.py:92
+    // is_verified=arc4.Bool(True),
+    pushbytes 0x80
+    // smart_contracts/truth_registry/contract.py:87-94
+    // # 3. Store the verification status
+    // status = ZKProofStatus(
+    //     proof_id=proof_id.copy(),
+    //     threshold=threshold,
+    //     proof_hash=proof_hash.copy(),
+    //     is_verified=arc4.Bool(True),
+    //     submitted_at_round=arc4.UInt64(Global.round),
+    // )
+    concat
+    swap
+    concat
+    dig 1
+    concat
+    // smart_contracts/truth_registry/contract.py:95
+    // self.proofs[proof_id.copy()] = status.copy()
+    bytec 5 // "proof_"
+    uncover 2
+    concat
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // smart_contracts/truth_registry/contract.py:67
+    // @arc4.abimethod
+    pushbytes 0x151f7c7580
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.get_proof_status[routing]() -> void:
+get_proof_status:
+    // smart_contracts/truth_registry/contract.py:99
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/truth_registry/contract.py:101
+    // assert proof_id in self.proofs, "Proof not found"
+    bytec 5 // "proof_"
+    swap
+    concat
+    dup
+    box_len
+    bury 1
+    assert // Proof not found
+    // smart_contracts/truth_registry/contract.py:102
+    // return self.proofs[proof_id.copy()].copy()
+    box_get
+    pop
+    // smart_contracts/truth_registry/contract.py:99
+    // @arc4.abimethod(readonly=True)
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.is_proof_verified[routing]() -> void:
+is_proof_verified:
+    // smart_contracts/truth_registry/contract.py:104
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/truth_registry/contract.py:106
+    // if proof_id not in self.proofs:
+    bytec 5 // "proof_"
+    swap
+    concat
+    dup
+    box_len
+    bury 1
+    bnz is_proof_verified_after_if_else@3
+    // smart_contracts/truth_registry/contract.py:107
+    // return arc4.Bool(False)
+    bytec_3 // 0x00
+
+is_proof_verified_after_inlined_smart_contracts.truth_registry.contract.TruthRegistry.is_proof_verified@4:
+    // smart_contracts/truth_registry/contract.py:104
+    // @arc4.abimethod(readonly=True)
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+is_proof_verified_after_if_else@3:
+    // smart_contracts/truth_registry/contract.py:108
+    // return self.proofs[proof_id.copy()].is_verified
+    dup
+    pushint 42
+    intc_1 // 1
+    box_extract // on error: index out of bounds
+    intc_0 // 0
+    getbit
+    bytec_3 // 0x00
+    intc_0 // 0
+    uncover 2
+    setbit
+    // smart_contracts/truth_registry/contract.py:104
+    // @arc4.abimethod(readonly=True)
+    b is_proof_verified_after_inlined_smart_contracts.truth_registry.contract.TruthRegistry.is_proof_verified@4
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.get_commitment[routing]() -> void:
+get_commitment:
+    // smart_contracts/truth_registry/contract.py:110
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/truth_registry/contract.py:112
+    // assert trait_id in self.anchors, "Trait ID not registered"
+    bytec_2 // "anchor_"
+    swap
+    concat
+    dup
+    box_len
+    bury 1
+    assert // Trait ID not registered
+    // smart_contracts/truth_registry/contract.py:113
+    // return self.anchors[trait_id.copy()]
+    box_get
+    pop
+    // smart_contracts/truth_registry/contract.py:110
+    // @arc4.abimethod(readonly=True)
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.is_trait_registered[routing]() -> void:
+is_trait_registered:
+    // smart_contracts/truth_registry/contract.py:115
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/truth_registry/contract.py:117
+    // return arc4.Bool(trait_id in self.anchors)
+    bytec_2 // "anchor_"
+    swap
+    concat
+    box_len
+    bury 1
+    bytec_3 // 0x00
+    intc_0 // 0
+    uncover 2
+    setbit
+    // smart_contracts/truth_registry/contract.py:115
+    // @arc4.abimethod(readonly=True)
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry.get_anchor_count[routing]() -> void:
+get_anchor_count:
+    // smart_contracts/truth_registry/contract.py:121
+    // return arc4.UInt64(self.anchor_count)
+    intc_0 // 0
+    bytec_1 // "anchor_count"
+    app_global_get_ex
+    assert // check self.anchor_count exists
+    itob
+    // smart_contracts/truth_registry/contract.py:119
+    // @arc4.abimethod(readonly=True)
+    bytec_0 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts.truth_registry.contract.TruthRegistry._is_registered_institution(addr: bytes) -> uint64:
+_is_registered_institution:
+    // smart_contracts/truth_registry/contract.py:43-44
+    // @subroutine
+    // def _is_registered_institution(self, addr: arc4.Address) -> bool:
+    proto 1 1
+    // smart_contracts/truth_registry/contract.py:45-49
+    // is_registered, _txn = arc4.abi_call(
+    //     IdentityRegistry.is_registered,
+    //     addr,
+    //     app_id=Application(self.identity_registry_app_id),
+    // )
+    itxn_begin
+    // smart_contracts/truth_registry/contract.py:48
+    // app_id=Application(self.identity_registry_app_id),
+    intc_0 // 0
+    bytec 4 // "identity_registry_app_id"
+    app_global_get_ex
+    assert // check self.identity_registry_app_id exists
+    itxn_field ApplicationID
+    // smart_contracts/truth_registry/contract.py:46
+    // IdentityRegistry.is_registered,
+    pushbytes 0x919c02df // method "is_registered(address)bool"
+    itxn_field ApplicationArgs
+    frame_dig -1
+    itxn_field ApplicationArgs
+    // smart_contracts/truth_registry/contract.py:45-49
+    // is_registered, _txn = arc4.abi_call(
+    //     IdentityRegistry.is_registered,
+    //     addr,
+    //     app_id=Application(self.identity_registry_app_id),
+    // )
+    pushint 6 // appl
+    itxn_field TypeEnum
+    intc_0 // 0
+    itxn_field Fee
+    itxn_submit
+    itxn LastLog
+    dup
+    extract 0 4
+    bytec_0 // 0x151f7c75
+    ==
+    assert // application log value is not the result of an ABI return
+    extract 4 0
+    dup
+    len
+    intc_1 // 1
+    ==
+    assert // invalid number of bytes for arc4.bool
+    // smart_contracts/truth_registry/contract.py:50
+    // return bool(is_registered)
+    bytec_3 // 0x00
+    !=
+    retsub

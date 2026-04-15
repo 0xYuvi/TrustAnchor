@@ -65,14 +65,14 @@
       "stack_out": []
     },
     "34": {
-      "op": "pushbytess 0xd8b8a2bb 0x044c21aa 0xf72722af // method \"anchor_identity(byte[],byte[])bool\", method \"get_commitment(byte[])byte[]\", method \"verify(uint64,byte[])bool\"",
+      "op": "pushbytess 0x51e7c6bb 0x044c21aa 0xf72722af // method \"register_anchor(byte[],byte[])bool\", method \"get_commitment(byte[])byte[]\", method \"verify(uint64,byte[])bool\"",
       "defined_out": [
-        "Method(anchor_identity(byte[],byte[])bool)",
         "Method(get_commitment(byte[])byte[])",
+        "Method(register_anchor(byte[],byte[])bool)",
         "Method(verify(uint64,byte[])bool)"
       ],
       "stack_out": [
-        "Method(anchor_identity(byte[],byte[])bool)",
+        "Method(register_anchor(byte[],byte[])bool)",
         "Method(get_commitment(byte[])byte[])",
         "Method(verify(uint64,byte[])bool)"
       ]
@@ -80,20 +80,20 @@
     "51": {
       "op": "txna ApplicationArgs 0",
       "defined_out": [
-        "Method(anchor_identity(byte[],byte[])bool)",
         "Method(get_commitment(byte[])byte[])",
+        "Method(register_anchor(byte[],byte[])bool)",
         "Method(verify(uint64,byte[])bool)",
         "tmp%6#0"
       ],
       "stack_out": [
-        "Method(anchor_identity(byte[],byte[])bool)",
+        "Method(register_anchor(byte[],byte[])bool)",
         "Method(get_commitment(byte[])byte[])",
         "Method(verify(uint64,byte[])bool)",
         "tmp%6#0"
       ]
     },
     "54": {
-      "op": "match anchor_identity get_commitment verify",
+      "op": "match register_anchor get_commitment verify",
       "stack_out": []
     },
     "62": {
@@ -156,39 +156,39 @@
       "stack_out": []
     },
     "71": {
-      "subroutine": "smart_contracts.trust_anchor.contract.TrustAnchor.anchor_identity[routing]",
+      "subroutine": "smart_contracts.trust_anchor.contract.TrustAnchor.register_anchor[routing]",
       "params": {},
-      "block": "anchor_identity",
+      "block": "register_anchor",
       "stack_in": [],
       "op": "txna ApplicationArgs 1",
       "defined_out": [
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0"
+        "trait_id#0"
       ]
     },
     "74": {
       "op": "dup",
       "defined_out": [
-        "user_address#0",
-        "user_address#0 (copy)"
+        "trait_id#0",
+        "trait_id#0 (copy)"
       ],
       "stack_out": [
-        "user_address#0",
-        "user_address#0 (copy)"
+        "trait_id#0",
+        "trait_id#0 (copy)"
       ]
     },
     "75": {
       "op": "intc_0 // 0",
       "defined_out": [
         "0",
-        "user_address#0",
-        "user_address#0 (copy)"
+        "trait_id#0",
+        "trait_id#0 (copy)"
       ],
       "stack_out": [
-        "user_address#0",
-        "user_address#0 (copy)",
+        "trait_id#0",
+        "trait_id#0 (copy)",
         "0"
       ]
     },
@@ -197,10 +197,10 @@
       "op": "extract_uint16 // on error: invalid array length header",
       "defined_out": [
         "aggregate%array_length%0#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "aggregate%array_length%0#0"
       ]
     },
@@ -209,10 +209,10 @@
       "defined_out": [
         "2",
         "aggregate%array_length%0#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "aggregate%array_length%0#0",
         "2"
       ]
@@ -221,19 +221,19 @@
       "op": "+",
       "defined_out": [
         "add%0#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "add%0#0"
       ]
     },
     "79": {
       "op": "dig 1",
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "add%0#0",
-        "user_address#0 (copy)"
+        "trait_id#0 (copy)"
       ]
     },
     "81": {
@@ -241,10 +241,10 @@
       "defined_out": [
         "add%0#0",
         "len%0#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "add%0#0",
         "len%0#0"
       ]
@@ -253,10 +253,10 @@
       "op": "==",
       "defined_out": [
         "eq%0#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "eq%0#0"
       ]
     },
@@ -264,17 +264,17 @@
       "error": "invalid number of bytes for arc4.dynamic_array<arc4.uint8>",
       "op": "assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>",
       "stack_out": [
-        "user_address#0"
+        "trait_id#0"
       ]
     },
     "84": {
       "op": "txna ApplicationArgs 2",
       "defined_out": [
         "commitment#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0"
       ]
     },
@@ -283,10 +283,10 @@
       "defined_out": [
         "commitment#0",
         "commitment#0 (copy)",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "commitment#0 (copy)"
       ]
@@ -294,7 +294,7 @@
     "88": {
       "op": "intc_0 // 0",
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "commitment#0 (copy)",
         "0"
@@ -306,10 +306,10 @@
       "defined_out": [
         "aggregate%array_length%1#0",
         "commitment#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "aggregate%array_length%1#0"
       ]
@@ -317,7 +317,7 @@
     "90": {
       "op": "intc_1 // 2",
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "aggregate%array_length%1#0",
         "2"
@@ -328,10 +328,10 @@
       "defined_out": [
         "add%1#0",
         "commitment#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "add%1#0"
       ]
@@ -339,7 +339,7 @@
     "92": {
       "op": "dig 1",
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "add%1#0",
         "commitment#0 (copy)"
@@ -351,10 +351,10 @@
         "add%1#0",
         "commitment#0",
         "len%1#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "add%1#0",
         "len%1#0"
@@ -365,10 +365,10 @@
       "defined_out": [
         "commitment#0",
         "eq%1#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "eq%1#0"
       ]
@@ -377,7 +377,7 @@
       "error": "invalid number of bytes for arc4.dynamic_array<arc4.uint8>",
       "op": "assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>",
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0"
       ]
     },
@@ -386,10 +386,10 @@
       "defined_out": [
         "\"anchor_\"",
         "commitment#0",
-        "user_address#0"
+        "trait_id#0"
       ],
       "stack_out": [
-        "user_address#0",
+        "trait_id#0",
         "commitment#0",
         "\"anchor_\""
       ]
@@ -399,7 +399,7 @@
       "stack_out": [
         "commitment#0",
         "\"anchor_\"",
-        "user_address#0"
+        "trait_id#0"
       ]
     },
     "100": {

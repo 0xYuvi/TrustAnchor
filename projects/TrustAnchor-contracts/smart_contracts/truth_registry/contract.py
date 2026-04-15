@@ -4,17 +4,20 @@ from algopy import (
     BoxMap,
     Txn,
     UInt64,
+    Global,
+    Bytes,
     arc4,
     subroutine,
 )
+import typing
 
-from ..identity_registry.approval import IdentityRegistry
+from ..identity_registry.contract import IdentityRegistry
 
 
 class ZKProofStatus(arc4.Struct):
     proof_id: arc4.DynamicBytes
     threshold: arc4.UInt64
-    proof_hash: arc4.StaticArray[arc4.UInt8, arc4.Literal[32]]
+    proof_hash: arc4.StaticArray[arc4.UInt8, typing.Literal[32]]
     is_verified: arc4.Bool
     submitted_at_round: arc4.UInt64
 
@@ -34,7 +37,7 @@ class TruthRegistry(ARC4Contract):
 
     @arc4.abimethod
     def set_verifier(self, verifier_app_id: arc4.UInt64) -> None:
-        assert Txn.sender == self.creator, "Only creator can set verifier"
+        assert Txn.sender == Global.creator_address, "Only creator can set verifier"
         self.verifier_app_id = verifier_app_id.native
 
     @subroutine
@@ -56,7 +59,7 @@ class TruthRegistry(ARC4Contract):
             "Caller must be a registered institution"
         )
 
-        assert trait_id.native not in self.anchors, "Trait ID already registered"
+        assert trait_id not in self.anchors, "Trait ID already registered"
 
         self.anchors[trait_id.copy()] = commitment.copy()
         self.anchor_count += UInt64(1)
@@ -67,7 +70,7 @@ class TruthRegistry(ARC4Contract):
         trait_id: arc4.DynamicBytes,
         proof_id: arc4.DynamicBytes,
         threshold: arc4.UInt64,
-        proof_hash: arc4.StaticArray[arc4.UInt8, arc4.Literal[32]],
+        proof_hash: arc4.StaticArray[arc4.UInt8, typing.Literal[32]],
     ) -> arc4.Bool:
         """
         Verify and settle a ZK claim.
@@ -79,15 +82,15 @@ class TruthRegistry(ARC4Contract):
         assert self._is_registered_institution(arc4.Address(sender.bytes)), "Caller must be a registered institution"
 
         # 2. Ensure the trait is actually registered and matches the commitment
-        assert trait_id.native in self.anchors, "Trait ID not registered"
+        assert trait_id in self.anchors, "Trait ID not registered"
 
         # 3. Store the verification status
         status = ZKProofStatus(
             proof_id=proof_id.copy(),
             threshold=threshold,
-            proof_hash=proof_hash,
+            proof_hash=proof_hash.copy(),
             is_verified=arc4.Bool(True),
-            submitted_at_round=arc4.UInt64(Global.round()),
+            submitted_at_round=arc4.UInt64(Global.round),
         )
         self.proofs[proof_id.copy()] = status.copy()
 
@@ -95,23 +98,23 @@ class TruthRegistry(ARC4Contract):
 
     @arc4.abimethod(readonly=True)
     def get_proof_status(self, proof_id: arc4.DynamicBytes) -> ZKProofStatus:
-        assert proof_id.native in self.proofs, "Proof not found"
-        return self.proofs[proof_id.copy()]
+        assert proof_id in self.proofs, "Proof not found"
+        return self.proofs[proof_id.copy()].copy()
 
     @arc4.abimethod(readonly=True)
     def is_proof_verified(self, proof_id: arc4.DynamicBytes) -> arc4.Bool:
-        if proof_id.native not in self.proofs:
+        if proof_id not in self.proofs:
             return arc4.Bool(False)
         return self.proofs[proof_id.copy()].is_verified
 
     @arc4.abimethod(readonly=True)
     def get_commitment(self, trait_id: arc4.DynamicBytes) -> arc4.DynamicBytes:
-        assert trait_id.native in self.anchors, "Trait ID not registered"
+        assert trait_id in self.anchors, "Trait ID not registered"
         return self.anchors[trait_id.copy()]
 
     @arc4.abimethod(readonly=True)
     def is_trait_registered(self, trait_id: arc4.DynamicBytes) -> arc4.Bool:
-        return arc4.Bool(trait_id.native in self.anchors)
+        return arc4.Bool(trait_id in self.anchors)
 
     @arc4.abimethod(readonly=True)
     def get_anchor_count(self) -> arc4.UInt64:

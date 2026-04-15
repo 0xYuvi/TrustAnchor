@@ -50,7 +50,7 @@ class IdentityRegistry(ARC4Contract):
         assert Txn.sender == self.admin, "Only admin can deactivate institutions"
         assert addr in self.institutions, "Institution not registered"
 
-        metadata = self.institutions[addr]
+        metadata = self.institutions[addr].copy()
         self.institutions[addr] = InstitutionMetadata(
             name=metadata.name,
             did=metadata.did,
@@ -67,7 +67,7 @@ class IdentityRegistry(ARC4Contract):
     @arc4.abimethod(readonly=True)
     def get_institution(self, addr: Account) -> InstitutionMetadata:
         assert addr in self.institutions, "Institution not registered"
-        return self.institutions[addr]
+        return self.institutions[addr].copy()
 
     @arc4.abimethod(readonly=True)
     def get_institution_count(self) -> arc4.UInt64:

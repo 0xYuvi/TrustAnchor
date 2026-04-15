@@ -19,7 +19,7 @@ from algosdk.v2client.models import SimulateTraceConfig
 import algokit_utils
 from algokit_utils import AlgorandClient as _AlgoKitAlgorandClient
 
-_APP_SPEC_JSON = r"""{"arcs": [22, 28], "bareActions": {"call": [], "create": ["NoOp"]}, "methods": [{"actions": {"call": ["NoOp"], "create": []}, "args": [{"type": "byte[]", "name": "user_address"}, {"type": "byte[]", "name": "commitment"}], "name": "anchor_identity", "returns": {"type": "bool"}, "events": [], "readonly": false, "recommendations": {}}, {"actions": {"call": ["NoOp"], "create": []}, "args": [{"type": "byte[]", "name": "user_address"}], "name": "get_commitment", "returns": {"type": "byte[]"}, "events": [], "readonly": false, "recommendations": {}}, {"actions": {"call": ["NoOp"], "create": []}, "args": [{"type": "uint64", "name": "threshold"}, {"type": "byte[]", "name": "proof_data"}], "name": "verify", "returns": {"type": "bool"}, "events": [], "readonly": false, "recommendations": {}}], "name": "TrustAnchor", "state": {"keys": {"box": {}, "global": {}, "local": {}}, "maps": {"box": {"anchors": {"keyType": "byte[]", "valueType": "byte[]", "prefix": "YW5jaG9yXw=="}}, "global": {}, "local": {}}, "schema": {"global": {"bytes": 0, "ints": 0}, "local": {"bytes": 0, "ints": 0}}}, "structs": {}, "byteCode": {"approval": "CyADAAIBJgIHYW5jaG9yXwUVH3x1gDEbQQAkMRkURDEYRIIDBNi4orsEBEwhqgT3JyKvNhoAjgMACQAwAE0AMRkUMRgUEEM2GgFJIlkjCEsBFRJENhoCSSJZIwhLARUSRChPAlBJvEhMvymwJEM2GgFJIlkjCEsBFRJEKExQvkSABBUffHVMULAkQzYaARWBCBJENhoCSSJZIwhMFRJEKbAkQw==", "clear": "C4EBQw=="}, "events": [], "networks": {}, "source": {"approval": "I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuYXBwcm92YWxfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIGludGNibG9jayAwIDIgMQogICAgYnl0ZWNibG9jayAiYW5jaG9yXyIgMHgxNTFmN2M3NTgwCiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjUKICAgIC8vIGNsYXNzIFRydXN0QW5jaG9yKEFSQzRDb250cmFjdCk6CiAgICB0eG4gTnVtQXBwQXJncwogICAgYnogbWFpbl9fX2FsZ29weV9kZWZhdWx0X2NyZWF0ZUAxMgogICAgdHhuIE9uQ29tcGxldGlvbgogICAgIQogICAgYXNzZXJ0CiAgICB0eG4gQXBwbGljYXRpb25JRAogICAgYXNzZXJ0CiAgICBwdXNoYnl0ZXNzIDB4ZDhiOGEyYmIgMHgwNDRjMjFhYSAweGY3MjcyMmFmIC8vIG1ldGhvZCAiYW5jaG9yX2lkZW50aXR5KGJ5dGVbXSxieXRlW10pYm9vbCIsIG1ldGhvZCAiZ2V0X2NvbW1pdG1lbnQoYnl0ZVtdKWJ5dGVbXSIsIG1ldGhvZCAidmVyaWZ5KHVpbnQ2NCxieXRlW10pYm9vbCIKICAgIHR4bmEgQXBwbGljYXRpb25BcmdzIDAKICAgIG1hdGNoIGFuY2hvcl9pZGVudGl0eSBnZXRfY29tbWl0bWVudCB2ZXJpZnkKICAgIGVycgoKbWFpbl9fX2FsZ29weV9kZWZhdWx0X2NyZWF0ZUAxMjoKICAgIHR4biBPbkNvbXBsZXRpb24KICAgICEKICAgIHR4biBBcHBsaWNhdGlvbklECiAgICAhCiAgICAmJgogICAgcmV0dXJuCgoKLy8gc21hcnRfY29udHJhY3RzLnRydXN0X2FuY2hvci5jb250cmFjdC5UcnVzdEFuY2hvci5hbmNob3JfaWRlbnRpdHlbcm91dGluZ10oKSAtPiB2b2lkOgphbmNob3JfaWRlbnRpdHk6CiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjkKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgZHVwCiAgICBpbnRjXzAgLy8gMAogICAgZXh0cmFjdF91aW50MTYgLy8gb24gZXJyb3I6IGludmFsaWQgYXJyYXkgbGVuZ3RoIGhlYWRlcgogICAgaW50Y18xIC8vIDIKICAgICsKICAgIGRpZyAxCiAgICBsZW4KICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuZHluYW1pY19hcnJheTxhcmM0LnVpbnQ4PgogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMgogICAgZHVwCiAgICBpbnRjXzAgLy8gMAogICAgZXh0cmFjdF91aW50MTYgLy8gb24gZXJyb3I6IGludmFsaWQgYXJyYXkgbGVuZ3RoIGhlYWRlcgogICAgaW50Y18xIC8vIDIKICAgICsKICAgIGRpZyAxCiAgICBsZW4KICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuZHluYW1pY19hcnJheTxhcmM0LnVpbnQ4PgogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weToxNQogICAgLy8gc2VsZi5hbmNob3JzW3VzZXJfYWRkcmVzcy5jb3B5KCldID0gY29tbWl0bWVudC5jb3B5KCkKICAgIGJ5dGVjXzAgLy8gImFuY2hvcl8iCiAgICB1bmNvdmVyIDIKICAgIGNvbmNhdAogICAgZHVwCiAgICBib3hfZGVsCiAgICBwb3AKICAgIHN3YXAKICAgIGJveF9wdXQKICAgIC8vIHNtYXJ0X2NvbnRyYWN0cy90cnVzdF9hbmNob3IvY29udHJhY3QucHk6OQogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBieXRlY18xIC8vIDB4MTUxZjdjNzU4MAogICAgbG9nCiAgICBpbnRjXzIgLy8gMQogICAgcmV0dXJuCgoKLy8gc21hcnRfY29udHJhY3RzLnRydXN0X2FuY2hvci5jb250cmFjdC5UcnVzdEFuY2hvci5nZXRfY29tbWl0bWVudFtyb3V0aW5nXSgpIC0+IHZvaWQ6CmdldF9jb21taXRtZW50OgogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weToxOAogICAgLy8gQGFiaW1ldGhvZCgpCiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAxCiAgICBkdXAKICAgIGludGNfMCAvLyAwCiAgICBleHRyYWN0X3VpbnQxNiAvLyBvbiBlcnJvcjogaW52YWxpZCBhcnJheSBsZW5ndGggaGVhZGVyCiAgICBpbnRjXzEgLy8gMgogICAgKwogICAgZGlnIDEKICAgIGxlbgogICAgPT0KICAgIGFzc2VydCAvLyBpbnZhbGlkIG51bWJlciBvZiBieXRlcyBmb3IgYXJjNC5keW5hbWljX2FycmF5PGFyYzQudWludDg+CiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjIwCiAgICAvLyByZXR1cm4gc2VsZi5hbmNob3JzW3VzZXJfYWRkcmVzcy5jb3B5KCldCiAgICBieXRlY18wIC8vICJhbmNob3JfIgogICAgc3dhcAogICAgY29uY2F0CiAgICBib3hfZ2V0CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5hbmNob3JzIGVudHJ5IGV4aXN0cwogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weToxOAogICAgLy8gQGFiaW1ldGhvZCgpCiAgICBwdXNoYnl0ZXMgMHgxNTFmN2M3NQogICAgc3dhcAogICAgY29uY2F0CiAgICBsb2cKICAgIGludGNfMiAvLyAxCiAgICByZXR1cm4KCgovLyBzbWFydF9jb250cmFjdHMudHJ1c3RfYW5jaG9yLmNvbnRyYWN0LlRydXN0QW5jaG9yLnZlcmlmeVtyb3V0aW5nXSgpIC0+IHZvaWQ6CnZlcmlmeToKICAgIC8vIHNtYXJ0X2NvbnRyYWN0cy90cnVzdF9hbmNob3IvY29udHJhY3QucHk6MjIKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgbGVuCiAgICBwdXNoaW50IDgKICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQudWludDY0CiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAyCiAgICBkdXAKICAgIGludGNfMCAvLyAwCiAgICBleHRyYWN0X3VpbnQxNiAvLyBvbiBlcnJvcjogaW52YWxpZCBhcnJheSBsZW5ndGggaGVhZGVyCiAgICBpbnRjXzEgLy8gMgogICAgKwogICAgc3dhcAogICAgbGVuCiAgICA9PQogICAgYXNzZXJ0IC8vIGludmFsaWQgbnVtYmVyIG9mIGJ5dGVzIGZvciBhcmM0LmR5bmFtaWNfYXJyYXk8YXJjNC51aW50OD4KICAgIGJ5dGVjXzEgLy8gMHgxNTFmN2M3NTgwCiAgICBsb2cKICAgIGludGNfMiAvLyAxCiAgICByZXR1cm4K", "clear": "I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuY2xlYXJfc3RhdGVfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIHB1c2hpbnQgMQogICAgcmV0dXJuCg=="}, "sourceInfo": {"approval": {"pcOffsetMethod": "none", "sourceInfo": [{"pc": [127], "errorMessage": "check self.anchors entry exists"}, {"pc": [76, 89, 115, 152], "errorMessage": "invalid array length header"}, {"pc": [83, 96, 122, 158], "errorMessage": "invalid number of bytes for arc4.dynamic_array<arc4.uint8>"}, {"pc": [146], "errorMessage": "invalid number of bytes for arc4.uint64"}]}, "clear": {"pcOffsetMethod": "none", "sourceInfo": []}}, "templateVariables": {}}"""
+_APP_SPEC_JSON = r"""{"arcs": [22, 28], "bareActions": {"call": [], "create": ["NoOp"]}, "methods": [{"actions": {"call": ["NoOp"], "create": []}, "args": [{"type": "byte[]", "name": "trait_id"}, {"type": "byte[]", "name": "commitment"}], "name": "register_anchor", "returns": {"type": "bool"}, "events": [], "readonly": false, "recommendations": {}}, {"actions": {"call": ["NoOp"], "create": []}, "args": [{"type": "byte[]", "name": "user_address"}], "name": "get_commitment", "returns": {"type": "byte[]"}, "events": [], "readonly": false, "recommendations": {}}, {"actions": {"call": ["NoOp"], "create": []}, "args": [{"type": "uint64", "name": "threshold"}, {"type": "byte[]", "name": "proof_data"}], "name": "verify", "returns": {"type": "bool"}, "events": [], "readonly": false, "recommendations": {}}], "name": "TrustAnchor", "state": {"keys": {"box": {}, "global": {}, "local": {}}, "maps": {"box": {"anchors": {"keyType": "byte[]", "valueType": "byte[]", "prefix": "YW5jaG9yXw=="}}, "global": {}, "local": {}}, "schema": {"global": {"bytes": 0, "ints": 0}, "local": {"bytes": 0, "ints": 0}}}, "structs": {}, "byteCode": {"approval": "CyADAAIBJgIHYW5jaG9yXwUVH3x1gDEbQQAkMRkURDEYRIIDBFHnxrsEBEwhqgT3JyKvNhoAjgMACQAwAE0AMRkUMRgUEEM2GgFJIlkjCEsBFRJENhoCSSJZIwhLARUSRChPAlBJvEhMvymwJEM2GgFJIlkjCEsBFRJEKExQvkSABBUffHVMULAkQzYaARWBCBJENhoCSSJZIwhMFRJEKbAkQw==", "clear": "C4EBQw=="}, "events": [], "networks": {}, "source": {"approval": "I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuYXBwcm92YWxfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIGludGNibG9jayAwIDIgMQogICAgYnl0ZWNibG9jayAiYW5jaG9yXyIgMHgxNTFmN2M3NTgwCiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjUKICAgIC8vIGNsYXNzIFRydXN0QW5jaG9yKEFSQzRDb250cmFjdCk6CiAgICB0eG4gTnVtQXBwQXJncwogICAgYnogbWFpbl9fX2FsZ29weV9kZWZhdWx0X2NyZWF0ZUAxMgogICAgdHhuIE9uQ29tcGxldGlvbgogICAgIQogICAgYXNzZXJ0CiAgICB0eG4gQXBwbGljYXRpb25JRAogICAgYXNzZXJ0CiAgICBwdXNoYnl0ZXNzIDB4NTFlN2M2YmIgMHgwNDRjMjFhYSAweGY3MjcyMmFmIC8vIG1ldGhvZCAicmVnaXN0ZXJfYW5jaG9yKGJ5dGVbXSxieXRlW10pYm9vbCIsIG1ldGhvZCAiZ2V0X2NvbW1pdG1lbnQoYnl0ZVtdKWJ5dGVbXSIsIG1ldGhvZCAidmVyaWZ5KHVpbnQ2NCxieXRlW10pYm9vbCIKICAgIHR4bmEgQXBwbGljYXRpb25BcmdzIDAKICAgIG1hdGNoIHJlZ2lzdGVyX2FuY2hvciBnZXRfY29tbWl0bWVudCB2ZXJpZnkKICAgIGVycgoKbWFpbl9fX2FsZ29weV9kZWZhdWx0X2NyZWF0ZUAxMjoKICAgIHR4biBPbkNvbXBsZXRpb24KICAgICEKICAgIHR4biBBcHBsaWNhdGlvbklECiAgICAhCiAgICAmJgogICAgcmV0dXJuCgoKLy8gc21hcnRfY29udHJhY3RzLnRydXN0X2FuY2hvci5jb250cmFjdC5UcnVzdEFuY2hvci5yZWdpc3Rlcl9hbmNob3Jbcm91dGluZ10oKSAtPiB2b2lkOgpyZWdpc3Rlcl9hbmNob3I6CiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjkKICAgIC8vIEBhYmltZXRob2QoKQogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMQogICAgZHVwCiAgICBpbnRjXzAgLy8gMAogICAgZXh0cmFjdF91aW50MTYgLy8gb24gZXJyb3I6IGludmFsaWQgYXJyYXkgbGVuZ3RoIGhlYWRlcgogICAgaW50Y18xIC8vIDIKICAgICsKICAgIGRpZyAxCiAgICBsZW4KICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuZHluYW1pY19hcnJheTxhcmM0LnVpbnQ4PgogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMgogICAgZHVwCiAgICBpbnRjXzAgLy8gMAogICAgZXh0cmFjdF91aW50MTYgLy8gb24gZXJyb3I6IGludmFsaWQgYXJyYXkgbGVuZ3RoIGhlYWRlcgogICAgaW50Y18xIC8vIDIKICAgICsKICAgIGRpZyAxCiAgICBsZW4KICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuZHluYW1pY19hcnJheTxhcmM0LnVpbnQ4PgogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weToxNQogICAgLy8gc2VsZi5hbmNob3JzW3RyYWl0X2lkLmNvcHkoKV0gPSBjb21taXRtZW50LmNvcHkoKQogICAgYnl0ZWNfMCAvLyAiYW5jaG9yXyIKICAgIHVuY292ZXIgMgogICAgY29uY2F0CiAgICBkdXAKICAgIGJveF9kZWwKICAgIHBvcAogICAgc3dhcAogICAgYm94X3B1dAogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weTo5CiAgICAvLyBAYWJpbWV0aG9kKCkKICAgIGJ5dGVjXzEgLy8gMHgxNTFmN2M3NTgwCiAgICBsb2cKICAgIGludGNfMiAvLyAxCiAgICByZXR1cm4KCgovLyBzbWFydF9jb250cmFjdHMudHJ1c3RfYW5jaG9yLmNvbnRyYWN0LlRydXN0QW5jaG9yLmdldF9jb21taXRtZW50W3JvdXRpbmddKCkgLT4gdm9pZDoKZ2V0X2NvbW1pdG1lbnQ6CiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjE4CiAgICAvLyBAYWJpbWV0aG9kKCkKICAgIHR4bmEgQXBwbGljYXRpb25BcmdzIDEKICAgIGR1cAogICAgaW50Y18wIC8vIDAKICAgIGV4dHJhY3RfdWludDE2IC8vIG9uIGVycm9yOiBpbnZhbGlkIGFycmF5IGxlbmd0aCBoZWFkZXIKICAgIGludGNfMSAvLyAyCiAgICArCiAgICBkaWcgMQogICAgbGVuCiAgICA9PQogICAgYXNzZXJ0IC8vIGludmFsaWQgbnVtYmVyIG9mIGJ5dGVzIGZvciBhcmM0LmR5bmFtaWNfYXJyYXk8YXJjNC51aW50OD4KICAgIC8vIHNtYXJ0X2NvbnRyYWN0cy90cnVzdF9hbmNob3IvY29udHJhY3QucHk6MjAKICAgIC8vIHJldHVybiBzZWxmLmFuY2hvcnNbdXNlcl9hZGRyZXNzLmNvcHkoKV0KICAgIGJ5dGVjXzAgLy8gImFuY2hvcl8iCiAgICBzd2FwCiAgICBjb25jYXQKICAgIGJveF9nZXQKICAgIGFzc2VydCAvLyBjaGVjayBzZWxmLmFuY2hvcnMgZW50cnkgZXhpc3RzCiAgICAvLyBzbWFydF9jb250cmFjdHMvdHJ1c3RfYW5jaG9yL2NvbnRyYWN0LnB5OjE4CiAgICAvLyBAYWJpbWV0aG9kKCkKICAgIHB1c2hieXRlcyAweDE1MWY3Yzc1CiAgICBzd2FwCiAgICBjb25jYXQKICAgIGxvZwogICAgaW50Y18yIC8vIDEKICAgIHJldHVybgoKCi8vIHNtYXJ0X2NvbnRyYWN0cy50cnVzdF9hbmNob3IuY29udHJhY3QuVHJ1c3RBbmNob3IudmVyaWZ5W3JvdXRpbmddKCkgLT4gdm9pZDoKdmVyaWZ5OgogICAgLy8gc21hcnRfY29udHJhY3RzL3RydXN0X2FuY2hvci9jb250cmFjdC5weToyMgogICAgLy8gQGFiaW1ldGhvZCgpCiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAxCiAgICBsZW4KICAgIHB1c2hpbnQgOAogICAgPT0KICAgIGFzc2VydCAvLyBpbnZhbGlkIG51bWJlciBvZiBieXRlcyBmb3IgYXJjNC51aW50NjQKICAgIHR4bmEgQXBwbGljYXRpb25BcmdzIDIKICAgIGR1cAogICAgaW50Y18wIC8vIDAKICAgIGV4dHJhY3RfdWludDE2IC8vIG9uIGVycm9yOiBpbnZhbGlkIGFycmF5IGxlbmd0aCBoZWFkZXIKICAgIGludGNfMSAvLyAyCiAgICArCiAgICBzd2FwCiAgICBsZW4KICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQuZHluYW1pY19hcnJheTxhcmM0LnVpbnQ4PgogICAgYnl0ZWNfMSAvLyAweDE1MWY3Yzc1ODAKICAgIGxvZwogICAgaW50Y18yIC8vIDEKICAgIHJldHVybgo=", "clear": "I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuY2xlYXJfc3RhdGVfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIHB1c2hpbnQgMQogICAgcmV0dXJuCg=="}, "sourceInfo": {"approval": {"pcOffsetMethod": "none", "sourceInfo": [{"pc": [127], "errorMessage": "check self.anchors entry exists"}, {"pc": [76, 89, 115, 152], "errorMessage": "invalid array length header"}, {"pc": [83, 96, 122, 158], "errorMessage": "invalid number of bytes for arc4.dynamic_array<arc4.uint8>"}, {"pc": [146], "errorMessage": "invalid number of bytes for arc4.uint64"}]}, "clear": {"pcOffsetMethod": "none", "sourceInfo": []}}, "templateVariables": {}}"""
 APP_SPEC = algokit_utils.Arc56Contract.from_json(_APP_SPEC_JSON)
 
 def _parse_abi_args(args: object | None = None) -> list[object] | None:
@@ -65,14 +65,14 @@ def _init_dataclass(cls: type, data: dict) -> object:
     return cls(**field_values)
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
-class AnchorIdentityArgs:
-    """Dataclass for anchor_identity arguments"""
-    user_address: bytes | str
+class RegisterAnchorArgs:
+    """Dataclass for register_anchor arguments"""
+    trait_id: bytes | str
     commitment: bytes | str
 
     @property
     def abi_method_signature(self) -> str:
-        return "anchor_identity(byte[],byte[])bool"
+        return "register_anchor(byte[],byte[])bool"
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class GetCommitmentArgs:
@@ -98,16 +98,16 @@ class TrustAnchorParams:
     def __init__(self, app_client: algokit_utils.AppClient):
         self.app_client = app_client
 
-    def anchor_identity(
+    def register_anchor(
         self,
-        args: tuple[bytes | str, bytes | str] | AnchorIdentityArgs,
+        args: tuple[bytes | str, bytes | str] | RegisterAnchorArgs,
         params: algokit_utils.CommonAppCallParams | None = None
     ) -> algokit_utils.AppCallMethodCallParams:
         method_args = _parse_abi_args(args)
         params = params or algokit_utils.CommonAppCallParams()
         return self.app_client.params.call(algokit_utils.AppClientMethodCallParams(**{
             **dataclasses.asdict(params),
-            "method": "anchor_identity(byte[],byte[])bool",
+            "method": "register_anchor(byte[],byte[])bool",
             "args": method_args,
         }))
 
@@ -152,16 +152,16 @@ class TrustAnchorCreateTransactionParams:
     def __init__(self, app_client: algokit_utils.AppClient):
         self.app_client = app_client
 
-    def anchor_identity(
+    def register_anchor(
         self,
-        args: tuple[bytes | str, bytes | str] | AnchorIdentityArgs,
+        args: tuple[bytes | str, bytes | str] | RegisterAnchorArgs,
         params: algokit_utils.CommonAppCallParams | None = None
     ) -> algokit_utils.BuiltTransactions:
         method_args = _parse_abi_args(args)
         params = params or algokit_utils.CommonAppCallParams()
         return self.app_client.create_transaction.call(algokit_utils.AppClientMethodCallParams(**{
             **dataclasses.asdict(params),
-            "method": "anchor_identity(byte[],byte[])bool",
+            "method": "register_anchor(byte[],byte[])bool",
             "args": method_args,
         }))
 
@@ -206,9 +206,9 @@ class TrustAnchorSend:
     def __init__(self, app_client: algokit_utils.AppClient):
         self.app_client = app_client
 
-    def anchor_identity(
+    def register_anchor(
         self,
-        args: tuple[bytes | str, bytes | str] | AnchorIdentityArgs,
+        args: tuple[bytes | str, bytes | str] | RegisterAnchorArgs,
         params: algokit_utils.CommonAppCallParams | None = None,
         send_params: algokit_utils.SendParams | None = None
     ) -> algokit_utils.SendAppTransactionResult[bool]:
@@ -216,7 +216,7 @@ class TrustAnchorSend:
         params = params or algokit_utils.CommonAppCallParams()
         response = self.app_client.send.call(algokit_utils.AppClientMethodCallParams(**{
             **dataclasses.asdict(params),
-            "method": "anchor_identity(byte[],byte[])bool",
+            "method": "register_anchor(byte[],byte[])bool",
             "args": method_args,
         }), send_params=send_params)
         parsed_response = response
@@ -491,7 +491,7 @@ class TrustAnchorClient:
     @typing.overload
     def decode_return_value(
         self,
-        method: typing.Literal["anchor_identity(byte[],byte[])bool"],
+        method: typing.Literal["register_anchor(byte[],byte[])bool"],
         return_value: algokit_utils.ABIReturn | None
     ) -> bool | None: ...
     @typing.overload
@@ -688,20 +688,20 @@ class TrustAnchorFactoryCreateParams:
             algokit_utils.AppFactoryCreateParams(**dataclasses.asdict(params)),
             compilation_params=compilation_params)
 
-    def anchor_identity(
+    def register_anchor(
         self,
-        args: tuple[bytes | str, bytes | str] | AnchorIdentityArgs,
+        args: tuple[bytes | str, bytes | str] | RegisterAnchorArgs,
         *,
         params: algokit_utils.CommonAppCallCreateParams | None = None,
         compilation_params: algokit_utils.AppClientCompilationParams | None = None
     ) -> algokit_utils.AppCreateMethodCallParams:
-        """Creates a new instance using the anchor_identity(byte[],byte[])bool ABI method"""
+        """Creates a new instance using the register_anchor(byte[],byte[])bool ABI method"""
         params = params or algokit_utils.CommonAppCallCreateParams()
         return self.app_factory.params.create(
             algokit_utils.AppFactoryCreateMethodCallParams(
                 **{
                 **dataclasses.asdict(params),
-                "method": "anchor_identity(byte[],byte[])bool",
+                "method": "register_anchor(byte[],byte[])bool",
                 "args": _parse_abi_args(args),
                 }
             ),
@@ -849,20 +849,20 @@ class TrustAnchorComposer:
         self._composer = client.algorand.new_group()
         self._result_mappers: list[typing.Callable[[algokit_utils.ABIReturn | None], object] | None] = []
 
-    def anchor_identity(
+    def register_anchor(
         self,
-        args: tuple[bytes | str, bytes | str] | AnchorIdentityArgs,
+        args: tuple[bytes | str, bytes | str] | RegisterAnchorArgs,
         params: algokit_utils.CommonAppCallParams | None = None
     ) -> "TrustAnchorComposer":
         self._composer.add_app_call_method_call(
-            self.client.params.anchor_identity(
+            self.client.params.register_anchor(
                 args=args,
                 params=params,
             )
         )
         self._result_mappers.append(
             lambda v: self.client.decode_return_value(
-                "anchor_identity(byte[],byte[])bool", v
+                "register_anchor(byte[],byte[])bool", v
             )
         )
         return self

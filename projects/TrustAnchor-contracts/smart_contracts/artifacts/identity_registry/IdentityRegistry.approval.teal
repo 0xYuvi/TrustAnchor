@@ -1,0 +1,414 @@
+#pragma version 11
+#pragma typetrack false
+
+// algopy.arc4.ARC4Contract.approval_program() -> uint64:
+main:
+    intcblock 0 2 1 32
+    bytecblock "institution_count" "admin" "inst_" 0x00 0x151f7c75 0x0007
+    txn ApplicationID
+    bnz main_after_if_else@2
+    // smart_contracts/identity_registry/contract.py:20
+    // self.admin = Account()
+    bytec_1 // "admin"
+    global ZeroAddress
+    app_global_put
+    // smart_contracts/identity_registry/contract.py:21
+    // self.institution_count = UInt64(0)
+    bytec_0 // "institution_count"
+    intc_0 // 0
+    app_global_put
+
+main_after_if_else@2:
+    // smart_contracts/identity_registry/contract.py:18
+    // class IdentityRegistry(ARC4Contract):
+    txn OnCompletion
+    !
+    assert
+    txn ApplicationID
+    bz main_create_NoOp@11
+    pushbytess 0x60b14ca1 0x095e9a23 0x919c02df 0xf9222f12 0x698c3c51 // method "register_institution(address,string,string,byte[])void", method "deactivate_institution(address)void", method "is_registered(address)bool", method "get_institution(address)(string,string,byte[],bool)", method "get_institution_count()uint64"
+    txna ApplicationArgs 0
+    match register_institution deactivate_institution is_registered get_institution get_institution_count
+    err
+
+main_create_NoOp@11:
+    // smart_contracts/identity_registry/contract.py:18
+    // class IdentityRegistry(ARC4Contract):
+    pushbytes 0xcc694eaa // method "create(address)void"
+    txna ApplicationArgs 0
+    match create
+    err
+
+
+// smart_contracts.identity_registry.contract.IdentityRegistry.create[routing]() -> void:
+create:
+    // smart_contracts/identity_registry/contract.py:24
+    // @arc4.abimethod(create="require")
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // smart_contracts/identity_registry/contract.py:26
+    // self.admin = admin
+    bytec_1 // "admin"
+    swap
+    app_global_put
+    // smart_contracts/identity_registry/contract.py:27
+    // self.institution_count = UInt64(0)
+    bytec_0 // "institution_count"
+    intc_0 // 0
+    app_global_put
+    // smart_contracts/identity_registry/contract.py:24
+    // @arc4.abimethod(create="require")
+    intc_2 // 1
+    return
+
+
+// smart_contracts.identity_registry.contract.IdentityRegistry.register_institution[routing]() -> void:
+register_institution:
+    // smart_contracts/identity_registry/contract.py:29
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_1 // 2
+    +
+    dig 1
+    len
+    dup
+    uncover 2
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 3
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_1 // 2
+    +
+    dig 1
+    len
+    dup
+    uncover 2
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 4
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_1 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/identity_registry/contract.py:37
+    // assert Txn.sender == self.admin, "Only admin can register institutions"
+    txn Sender
+    intc_0 // 0
+    bytec_1 // "admin"
+    app_global_get_ex
+    assert // check self.admin exists
+    ==
+    assert // Only admin can register institutions
+    // smart_contracts/identity_registry/contract.py:39-44
+    // metadata = InstitutionMetadata(
+    //     name=name,
+    //     did=did,
+    //     public_key=public_key.copy(),
+    //     is_active=arc4.Bool(True),
+    // )
+    pushint 7
+    uncover 4
+    +
+    dup
+    itob
+    extract 6 2
+    bytec 5 // 0x0007
+    swap
+    concat
+    swap
+    uncover 3
+    +
+    itob
+    extract 6 2
+    concat
+    // smart_contracts/identity_registry/contract.py:43
+    // is_active=arc4.Bool(True),
+    pushbytes 0x80
+    // smart_contracts/identity_registry/contract.py:39-44
+    // metadata = InstitutionMetadata(
+    //     name=name,
+    //     did=did,
+    //     public_key=public_key.copy(),
+    //     is_active=arc4.Bool(True),
+    // )
+    concat
+    uncover 3
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    // smart_contracts/identity_registry/contract.py:45
+    // self.institutions[addr] = metadata.copy()
+    bytec_2 // "inst_"
+    uncover 2
+    concat
+    dup
+    box_del
+    pop
+    swap
+    box_put
+    // smart_contracts/identity_registry/contract.py:46
+    // self.institution_count += UInt64(1)
+    intc_0 // 0
+    bytec_0 // "institution_count"
+    app_global_get_ex
+    assert // check self.institution_count exists
+    intc_2 // 1
+    +
+    bytec_0 // "institution_count"
+    swap
+    app_global_put
+    // smart_contracts/identity_registry/contract.py:29
+    // @arc4.abimethod
+    intc_2 // 1
+    return
+
+
+// smart_contracts.identity_registry.contract.IdentityRegistry.deactivate_institution[routing]() -> void:
+deactivate_institution:
+    // smart_contracts/identity_registry/contract.py:48
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // smart_contracts/identity_registry/contract.py:50
+    // assert Txn.sender == self.admin, "Only admin can deactivate institutions"
+    txn Sender
+    intc_0 // 0
+    bytec_1 // "admin"
+    app_global_get_ex
+    assert // check self.admin exists
+    ==
+    assert // Only admin can deactivate institutions
+    // smart_contracts/identity_registry/contract.py:51
+    // assert addr in self.institutions, "Institution not registered"
+    bytec_2 // "inst_"
+    swap
+    concat
+    dup
+    box_len
+    bury 1
+    assert // Institution not registered
+    // smart_contracts/identity_registry/contract.py:55
+    // name=metadata.name,
+    dup
+    pushint 7
+    intc_1 // 2
+    box_extract
+    btoi
+    intc_1 // 2
+    +
+    dig 1
+    pushint 7
+    uncover 2
+    box_extract
+    // smart_contracts/identity_registry/contract.py:56
+    // did=metadata.did,
+    dig 1
+    intc_1 // 2
+    dup
+    box_extract
+    btoi
+    dig 2
+    dig 1
+    intc_1 // 2
+    box_extract
+    btoi
+    intc_1 // 2
+    +
+    dig 3
+    cover 2
+    box_extract
+    // smart_contracts/identity_registry/contract.py:57
+    // public_key=metadata.public_key.copy(),
+    dig 2
+    pushint 4
+    intc_1 // 2
+    box_extract
+    btoi
+    dig 3
+    dig 1
+    intc_1 // 2
+    box_extract
+    btoi
+    intc_1 // 2
+    +
+    dig 4
+    cover 2
+    box_extract
+    // smart_contracts/identity_registry/contract.py:54-59
+    // self.institutions[addr] = InstitutionMetadata(
+    //     name=metadata.name,
+    //     did=metadata.did,
+    //     public_key=metadata.public_key.copy(),
+    //     is_active=arc4.Bool(False),
+    // ).copy()
+    dig 2
+    len
+    pushint 7
+    +
+    dup
+    itob
+    extract 6 2
+    bytec 5 // 0x0007
+    swap
+    concat
+    dig 3
+    len
+    uncover 2
+    +
+    itob
+    extract 6 2
+    concat
+    // smart_contracts/identity_registry/contract.py:58
+    // is_active=arc4.Bool(False),
+    bytec_3 // 0x00
+    // smart_contracts/identity_registry/contract.py:54-59
+    // self.institutions[addr] = InstitutionMetadata(
+    //     name=metadata.name,
+    //     did=metadata.did,
+    //     public_key=metadata.public_key.copy(),
+    //     is_active=arc4.Bool(False),
+    // ).copy()
+    concat
+    uncover 3
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    dig 1
+    box_del
+    pop
+    box_put
+    // smart_contracts/identity_registry/contract.py:48
+    // @arc4.abimethod
+    intc_2 // 1
+    return
+
+
+// smart_contracts.identity_registry.contract.IdentityRegistry.is_registered[routing]() -> void:
+is_registered:
+    // smart_contracts/identity_registry/contract.py:61
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // smart_contracts/identity_registry/contract.py:63
+    // if addr not in self.institutions:
+    bytec_2 // "inst_"
+    swap
+    concat
+    dup
+    box_len
+    bury 1
+    bnz is_registered_after_if_else@3
+    // smart_contracts/identity_registry/contract.py:64
+    // return arc4.Bool(False)
+    bytec_3 // 0x00
+
+is_registered_after_inlined_smart_contracts.identity_registry.contract.IdentityRegistry.is_registered@4:
+    // smart_contracts/identity_registry/contract.py:61
+    // @arc4.abimethod(readonly=True)
+    bytec 4 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_2 // 1
+    return
+
+is_registered_after_if_else@3:
+    // smart_contracts/identity_registry/contract.py:65
+    // return self.institutions[addr].is_active
+    dup
+    pushint 6
+    intc_2 // 1
+    box_extract // on error: index out of bounds
+    intc_0 // 0
+    getbit
+    bytec_3 // 0x00
+    intc_0 // 0
+    uncover 2
+    setbit
+    // smart_contracts/identity_registry/contract.py:61
+    // @arc4.abimethod(readonly=True)
+    b is_registered_after_inlined_smart_contracts.identity_registry.contract.IdentityRegistry.is_registered@4
+
+
+// smart_contracts.identity_registry.contract.IdentityRegistry.get_institution[routing]() -> void:
+get_institution:
+    // smart_contracts/identity_registry/contract.py:67
+    // @arc4.abimethod(readonly=True)
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // smart_contracts/identity_registry/contract.py:69
+    // assert addr in self.institutions, "Institution not registered"
+    bytec_2 // "inst_"
+    swap
+    concat
+    dup
+    box_len
+    bury 1
+    assert // Institution not registered
+    // smart_contracts/identity_registry/contract.py:70
+    // return self.institutions[addr].copy()
+    box_get
+    pop
+    // smart_contracts/identity_registry/contract.py:67
+    // @arc4.abimethod(readonly=True)
+    bytec 4 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_2 // 1
+    return
+
+
+// smart_contracts.identity_registry.contract.IdentityRegistry.get_institution_count[routing]() -> void:
+get_institution_count:
+    // smart_contracts/identity_registry/contract.py:74
+    // return arc4.UInt64(self.institution_count)
+    intc_0 // 0
+    bytec_0 // "institution_count"
+    app_global_get_ex
+    assert // check self.institution_count exists
+    itob
+    // smart_contracts/identity_registry/contract.py:72
+    // @arc4.abimethod(readonly=True)
+    bytec 4 // 0x151f7c75
+    swap
+    concat
+    log
+    intc_2 // 1
+    return

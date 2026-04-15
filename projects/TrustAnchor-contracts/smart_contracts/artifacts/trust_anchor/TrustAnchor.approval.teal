@@ -14,9 +14,9 @@ main:
     assert
     txn ApplicationID
     assert
-    pushbytess 0xd8b8a2bb 0x044c21aa 0xf72722af // method "anchor_identity(byte[],byte[])bool", method "get_commitment(byte[])byte[]", method "verify(uint64,byte[])bool"
+    pushbytess 0x51e7c6bb 0x044c21aa 0xf72722af // method "register_anchor(byte[],byte[])bool", method "get_commitment(byte[])byte[]", method "verify(uint64,byte[])bool"
     txna ApplicationArgs 0
-    match anchor_identity get_commitment verify
+    match register_anchor get_commitment verify
     err
 
 main___algopy_default_create@12:
@@ -28,8 +28,8 @@ main___algopy_default_create@12:
     return
 
 
-// smart_contracts.trust_anchor.contract.TrustAnchor.anchor_identity[routing]() -> void:
-anchor_identity:
+// smart_contracts.trust_anchor.contract.TrustAnchor.register_anchor[routing]() -> void:
+register_anchor:
     // smart_contracts/trust_anchor/contract.py:9
     // @abimethod()
     txna ApplicationArgs 1
@@ -53,7 +53,7 @@ anchor_identity:
     ==
     assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
     // smart_contracts/trust_anchor/contract.py:15
-    // self.anchors[user_address.copy()] = commitment.copy()
+    // self.anchors[trait_id.copy()] = commitment.copy()
     bytec_0 // "anchor_"
     uncover 2
     concat
