@@ -171,6 +171,17 @@ class ZKPService:
                 "-pk", str(pk_path)
             ]
             
+            # Diagnostic: Log OS and Binary info in production
+            import platform
+            logger.info(f"[ZKP-DIAG] OS: {platform.system()}, Arch: {platform.machine()}")
+            
+            try:
+                import subprocess
+                file_info = subprocess.check_output(['file', str(binary_path)]).decode()
+                logger.info(f"[ZKP-DIAG] Binary Info: {file_info.strip()}")
+            except:
+                pass
+
             logger.debug(f"[ZKP-PROVE] Executing: {' '.join(cmd)}")
 
             result = await asyncio.create_subprocess_exec(
