@@ -1,9 +1,11 @@
 # Stage 1: Build the Go Prover from source
 FROM golang:1.21-alpine as prover-builder
+# Install build dependencies for C-go / crypto
+RUN apk add --no-cache build-base
 WORKDIR /app
-# Copy only the circuits folder
+# Copy the entire circuits directory (including go.mod/sum)
 COPY circuits/ ./circuits/
-RUN cd circuits && go build -o /app/prover cmd/prover/main.go
+RUN cd circuits && go build -o /app/prover ./cmd/prover/main.go
 
 # Stage 2: Python Backend
 FROM python:3.11-slim
