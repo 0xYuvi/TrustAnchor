@@ -115,6 +115,7 @@ class Inquiry(BaseModel):
     proof: Optional[str] = None
     public_inputs: Optional[dict] = None
     payment_txid: Optional[str] = None
+    error: Optional[str] = None
 
 
 # In-memory store for demo (should be database/box for production)
@@ -612,6 +613,7 @@ async def fulfill_inquiry(inquiry_id: str, bundle: AttestationBundle):
         )
         is_valid = zkp_result.valid
         if not is_valid:
+            inquiry.error = zkp_result.error
             logger.warning(f"[ZKP] Verification FAILED for {inquiry_id}. Error: {zkp_result.error}")
         else:
             logger.info(f"[ZKP] Verification PASSED for {inquiry_id}")

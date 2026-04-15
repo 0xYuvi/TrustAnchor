@@ -168,12 +168,16 @@ const TrustAnchorApp: React.FC = () => {
         const result = (await algodClient.sendRawTransaction(signedTxs).do()) as any
         const txId = result.txId || result.txID || result.txid
         
+        if (!txId) {
+          throw new Error('Transaction submission failed: No ID returned')
+        }
+
         addLog(`[TX] Broadcast! View on Explorer: https://testnet.algoexplorer.io/tx/${txId}`)
         await algosdk.waitForConfirmation(algodClient, txId, 10)
         
         // Indexer Grace Period: Wait for the indexer to see the block
-        addLog(`[SYNC] Waiting for Indexer synchronization...`)
-        await new Promise(resolve => setTimeout(resolve, 5000))
+        addLog(`[SYNC] Waiting for Indexer synchronization (10s)...`)
+        await new Promise(resolve => setTimeout(resolve, 10000))
         
         setStep('verify')
         response = await fetch(`${BACKEND_URL}/inquiry/create`, {
@@ -235,7 +239,7 @@ const TrustAnchorApp: React.FC = () => {
       setActiveInquiry(data)
       setThreshold(data.threshold)
       setVerificationMode(data.mode)
-      addLog(`[SUCCESS] Inquiry Loaded: ${data.mode} check for $${data.threshold}`)
+      addLog(`[SUCCESS] Inquiry Loaded: ${data.mode} verification against ${data.requested_traits?.includes('income_annual') ? '$' : ''}${data.threshold}`)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -279,10 +283,13 @@ const TrustAnchorApp: React.FC = () => {
       })
 
       if (!fulfillResp.ok) throw new Error('Fulfillment failed')
+      const fulfillResult = await fulfillResp.json()
       
       setStep('complete')
-      addLog('[SUCCESS] Inquiry fulfilled!')
-      setActiveInquiry((prev: any) => ({ ...prev, status: 'fulfilled', result: true }))
+      addLog(`[SYNC] Finalizing protocol state...`)
+      // Refresh definitive state from backend
+      await runFetchInquiry(activeInquiry.id)
+      addLog(`[SUCCESS] Fulfillment Protocol Absolute.`)
     } catch (err: any) {
       setError(err.message)
       addLog(`[ERROR] ${err.message}`)
@@ -371,295 +378,414 @@ const TrustAnchorApp: React.FC = () => {
         </div>
       </nav>
 
-      <main className="relative z-10 max-w-7xl mx-auto p-8 pt-16">
-        {/* Hero Section */}
-        <div className="text-center mb-16 space-y-4">
-          <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[10px] uppercase tracking-[0.2em] font-black text-purple-300 mb-2">
-            Protocol v2.5 • Zero Knowledge 
+            <main className="pt-32 px-6">
+        {/* Simple Brand Reveal */}
+        <section id="about" className="max-w-7xl mx-auto text-center space-y-12 mb-40">
+          <div className="space-y-4">
+            <h1 className="text-7xl md:text-9xl font-black tracking-tighter text-gradient leading-none py-2">
+              Truth-as-a-Service
+            </h1>
+            <p className="text-slate-400 max-w-2xl mx-auto text-lg leading-relaxed font-medium">
+              The next-generation <span className="text-purple-400 font-bold">ZK-Identity Protocol</span> on Algorand. Private verification where verifiers take the lead—secure, anonymous, and powered by x402 micropayments.
+            </p>
           </div>
-          <h1 className="text-6xl md:text-8xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-white/40 leading-none">
-            Truth-as-a-Service
-          </h1>
-          <p className="text-slate-400 max-w-2xl mx-auto text-lg leading-relaxed italic">
-            Private identity verification where verifiers take the lead. Secure, anonymous, and on-chain.
-          </p>
-        </div>
 
-        {portalMode === 'verifier' ? (
-          /* ENTERPRISE/VERIFIER VIEW */
-          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in zoom-in duration-500">
-             <div className="fintech-card p-12 text-center space-y-8 bg-gradient-to-tr from-purple-900/10 to-transparent">
-                <div className="w-20 h-20 bg-purple-500/20 border border-purple-500/40 rounded-full mx-auto flex items-center justify-center">
-                  <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto text-left pt-12">
+            {[
+              { 
+                title: 'Data Fortress', 
+                desc: 'Raw PII never leaves your device. Prove eligibility (Age > 18, Income > $50k) using Zero-Knowledge cryptography without ever exposing your private values.',
+                icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+              },
+              { 
+                title: 'Algorand Proofs', 
+                desc: 'Your identity is anchored as a cryptographic commitment to the Algorand ledger, ensuring global trust and mathematical integrity without a central database.',
+                icon: 'M13 10V3L4 14h7v7l9-11h-7z'
+              },
+              { 
+                title: 'x402 Economy', 
+                desc: 'Automated micropayments align incentives between identity providers and verifiers. Build high-fidelity trust networks where verification is instant and paid.',
+                icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+              }
+            ].map((feature, i) => (
+              <div key={i} className="fintech-card relative group hover:scale-[1.02]">
+                <div className="w-12 h-12 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-center justify-center mb-6 text-purple-400 group-hover:scale-110 group-hover:bg-purple-500 group-hover:text-white transition-all duration-500">
+                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={feature.icon} /></svg>
                 </div>
-                <div>
-                  <h2 className="text-4xl font-black mb-4 uppercase tracking-tighter">Inquiry Generator</h2>
-                  <p className="text-slate-400 max-w-xl mx-auto">Set verification requirements and issue a secure inquiry code. The fee is paid up-front by you.</p>
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                    <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Income Bound ($)</label>
-                        <input 
-                            type="number" 
-                            value={threshold} 
-                            onChange={(e) => setThreshold(Number(e.target.value))} 
-                            className="w-full bg-black/50 border border-white/10 p-4 rounded-xl font-black text-white focus:outline-none focus:border-purple-500 font-mono"
-                        />
-                    </div>
-                    <div className="space-y-2 text-left">
-                        <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Proof Protocol</label>
-                        <select 
-                            value={verificationMode}
-                            onChange={(e: any) => setVerificationMode(e.target.value)}
-                            className="w-full bg-black/50 border border-white/10 p-4 rounded-xl font-black text-white focus:outline-none uppercase text-xs"
-                        >
-                            <option value="boolean">Identity Seal (Boolean)</option>
-                            <option value="zkp">ZK Attestation (ZKP)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="max-w-2xl mx-auto space-y-4">
-                    <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest block text-left">Requested Attributes</label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {[
-                          { id: 'full_name', label: 'Full Name' },
-                          { id: 'age', label: 'Verified Age' },
-                          { id: 'income_annual', label: 'Annual Income' },
-                          { id: 'citizenship', label: 'Citizenship' },
-                          { id: 'address', label: 'Residency' }
-                        ].map(trait => (
-                          <button 
-                            key={trait.id}
-                            onClick={() => {
-                              setReqTraits(prev => 
-                                prev.includes(trait.id) ? prev.filter(t => t !== trait.id) : [...prev, trait.id]
-                              )
-                            }}
-                            className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-tighter transition-all ${reqTraits.includes(trait.id) ? 'bg-purple-500/20 border-purple-500 text-white' : 'bg-white/5 border-white/5 text-slate-500 hover:border-white/20'}`}
-                          >
-                            {trait.label}
-                          </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="max-w-2xl mx-auto pt-4">
-                  <button 
-                    onClick={runCreateInquiryFlow}
-                    disabled={loading || !activeAddress}
-                    className="w-full py-6 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-[0.3em] shadow-[0_0_30px_rgba(147,51,234,0.3)] transition-all active:scale-95 disabled:opacity-30"
-                  >
-                    {loading ? 'Issuing Protocol Inquiry...' : 'Issue Paid Inquiry Request'}
-                  </button>
-                </div>
-
-                {attestationCode && (
-                   <div className="mt-8 p-8 bg-green-500/10 border border-green-500/30 rounded-3xl animate-in zoom-in duration-500 max-w-2xl mx-auto border-dashed">
-                      <div className="text-[10px] font-black text-green-400 uppercase tracking-[0.4em] mb-4">Request Issued Successfully</div>
-                      <div className="text-6xl font-black text-white tracking-widest mb-6 font-mono select-all">
-                        {attestationCode}
-                      </div>
-                      <div className="flex gap-4 justify-center">
-                        <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(attestationCode);
-                            addLog('[UI] Code copied!');
-                          }}
-                          className="px-8 py-3 bg-green-500 text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-105 active:scale-95 transition-all"
-                        >
-                          Copy Code
-                        </button>
-                        <button 
-                          onClick={() => attestationCode && checkInquiryStatus(attestationCode)}
-                          className="px-8 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-105 active:scale-95 transition-all"
-                        >
-                          Check Status
-                        </button>
-                      </div>
-                   </div>
-                )}
-
-                {verificationResult && (
-                    <div className="mt-8 p-12 fintech-card border-green-500 bg-green-500/5 animate-pulse max-w-2xl mx-auto flex items-center justify-center gap-6">
-                        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center border border-green-500/40">
-                            <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                        </div>
-                        <div className="text-left">
-                            <h3 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">Verified</h3>
-                            <p className="text-green-400 font-bold uppercase tracking-widest text-[10px]">Proof satisfies all protocol constraints</p>
-                        </div>
-                    </div>
-                )}
-             </div>
+                <h3 className="text-xl font-black uppercase tracking-tight text-white mb-3">{feature.title}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">{feature.desc}</p>
+              </div>
+            ))}
           </div>
-        ) : (
-          /* CITIZEN/PROVER VIEW */
-          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in zoom-in duration-500">
-            {!kycData ? (
-                 <div className="fintech-card text-center p-12 space-y-8 bg-gradient-to-b from-white/[0.03] to-transparent">
-                     <div className="w-24 h-24 bg-purple-500/10 border border-purple-500/20 rounded-3xl mx-auto flex items-center justify-center mb-4">
-                        <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                      </div>
-                      <div>
-                        <h2 className="text-3xl font-black mb-3">Identity Anchor</h2>
-                        <p className="text-slate-400">Upload your government-issued document to securely participate.</p>
-                      </div>
-                      <div className="relative group max-w-sm mx-auto">
-                        <div className="relative bg-white text-black p-5 rounded-2xl font-black uppercase text-xs tracking-widest cursor-pointer hover:bg-slate-100 active:scale-95 transition-all text-center">
-                            <input 
-                                type="file" 
-                                accept=".pdf" 
-                                onChange={uploadDocument}
-                                disabled={loading || !activeAddress}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                            />
-                            {loading ? 'Analyzing...' : 'Select Document'}
-                        </div>
-                      </div>
-                 </div>
-            ) : (
-              <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-700">
-                 {/* Identity Vault Preview */}
-                 <div className="grid lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-12">
-                       <div className="fintech-card bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20 p-8">
-                          <div className="flex justify-between items-center mb-10">
-                             <div>
-                                <h3 className="text-xl font-black uppercase tracking-tight text-white mb-1">Your Identity Vault</h3>
-                                <p className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">Verified & Anchored on Algorand</p>
-                             </div>
-                             <div className="px-4 py-2 bg-green-500/20 text-green-400 text-[10px] font-black rounded-2xl border border-green-500/30 flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                SECURE ANCHOR ACTIVE
-                             </div>
-                          </div>
+        </section>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                             {[
-                                { label: 'Extracted Name', value: kycData.verified_data?.full_name, icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-                                { label: 'Verified Income', value: kycData.verified_data?.income_annual ? `$${kycData.verified_data.income_annual.toLocaleString()}` : 'N/A', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-                                { label: 'Citizenship', value: kycData.verified_data?.citizenship, icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2 2 2 0 012 2v.653M3 20h18M3 10a13.932 13.932 0 010 4M21 10a13.932 13.932 0 010 4' },
-                                { label: 'Resident Address', value: kycData.verified_data?.address?.slice(0, 30) + '...', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
-                             ].map((item, idx) => (
-                                <div key={idx} className="p-6 bg-black/40 rounded-3xl border border-white/5 space-y-3 group hover:border-purple-500/50 transition-all">
-                                   <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-purple-400 transition-colors">
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} /></svg>
-                                   </div>
-                                   <div>
-                                      <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.label}</div>
-                                      <div className="text-sm font-bold text-white truncate">{item.value || 'Not Detected'}</div>
-                                   </div>
-                                </div>
-                             ))}
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-
-                 <div className="fintech-card p-12 text-center bg-gradient-to-b from-purple-500/5 to-transparent border-purple-500/20">
-                    <h2 className="text-3xl font-black mb-4 uppercase tracking-tighter">Inquiry Fulfillment</h2>
-                    <p className="text-slate-400 mb-8 max-w-md mx-auto">Enter the secure inquiry code provided by an enterprise to unlock their request.</p>
-                    
-                    <div className="max-w-md mx-auto space-y-4">
-                        <input 
-                            type="text" 
-                            placeholder="TRU-XXXXXX"
-                            value={inquiryCode}
-                            onChange={(e) => setInquiryCode(e.target.value.toUpperCase())}
-                            className="w-full bg-black/50 border border-white/10 p-6 rounded-2xl text-center text-5xl font-black text-purple-300 tracking-[0.2em] focus:outline-none focus:border-purple-500 transition-all font-mono"
-                        />
+        {/* Playground / Tooling Section */}
+        <section id="playground" className="max-w-7xl mx-auto mb-48 scroll-mt-32">
+          {!activeAddress ? (
+            <div className="fintech-card py-32 text-center space-y-10 bg-gradient-to-b from-purple-500/5 to-transparent border-dashed">
+                <div className="space-y-4">
+                    <h2 className="text-6xl font-black uppercase tracking-tighter">Enter the Citadel</h2>
+                    <p className="text-slate-500 max-w-sm mx-auto">Connect your Algorand wallet to access the TrustAnchor Protocol playground.</p>
+                </div>
+                <button 
+                  onClick={() => setOpenWalletModal(true)}
+                  className="btn-premium transform scale-125"
+                >
+                  Connect Wallet
+                </button>
+            </div>
+          ) : (
+             <div className="space-y-12">
+                {/* Mode Selector */}
+                <div className="flex justify-center">
+                    <div className="bg-[#111111] p-2 rounded-[2rem] border border-[#2a2a2a] flex gap-2 shadow-2xl">
                         <button 
-                            onClick={() => runFetchInquiry(inquiryCode)}
-                            disabled={loading || !inquiryCode}
-                            className="w-full py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-slate-100 transition-all active:scale-95 disabled:opacity-30"
+                            onClick={() => setPortalMode('citizen')}
+                            className={`px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${portalMode === 'citizen' ? 'bg-white text-black shadow-xl' : 'text-slate-500 hover:text-white'}`}
                         >
-                            {loading ? 'Searching Ledger...' : 'Unlock Request'}
+                            Identity Citizen
+                        </button>
+                        <button 
+                            onClick={() => setPortalMode('verifier')}
+                            className={`px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${portalMode === 'verifier' ? 'bg-white text-black shadow-xl' : 'text-slate-500 hover:text-white'}`}
+                        >
+                            Enterprise Verifier
                         </button>
                     </div>
+                </div>
 
-                    {activeInquiry && (
-                        <div className="mt-12 p-8 border border-purple-500/30 rounded-3xl bg-purple-500/5 text-left animate-in slide-in-from-top-4 duration-500 max-w-2xl mx-auto">
-                            <div className="flex justify-between items-start mb-8">
-                                <div>
-                                    <h3 className="text-xl font-black uppercase text-white tracking-tight">Enterprise Request</h3>
-                                    <p className="text-[10px] text-slate-500 font-mono tracking-widest">{activeInquiry.id}</p>
-                                </div>
-                                <div className="px-3 py-1 bg-green-500/20 text-green-400 text-[10px] font-black rounded-full border border-green-500/30 uppercase tracking-tighter">Active Inquiry</div>
+                {portalMode === 'verifier' ? (
+                  /* VERIFIER VIEW */
+                  <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in zoom-in duration-700">
+                     <div className="fintech-card p-12 text-center space-y-12 bg-gradient-to-tr from-purple-900/10 to-transparent">
+                        <div className="flex flex-col items-center space-y-6">
+                            <div className="w-20 h-20 bg-purple-500/20 border border-purple-500/40 rounded-full flex items-center justify-center">
+                                <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                             </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="p-4 bg-black/40 rounded-2xl border border-white/5 col-span-2">
-                                    <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest block mb-1">Requested Data Points</span>
-                                    <div className="flex flex-wrap gap-2">
-                                        {activeInquiry.requested_traits?.map((t: string) => (
-                                            <span key={t} className="px-2 py-1 bg-white/5 rounded text-[9px] font-bold text-purple-300 uppercase">{t.replace('_', ' ')}</span>
-                                        ))}
+                            <div className="space-y-2">
+                                <h2 className="text-5xl font-black uppercase tracking-tighter">Inquiry Engine</h2>
+                                <p className="text-slate-400 max-w-md mx-auto text-xs uppercase tracking-widest font-bold opacity-60">Issue a Paid Verification Challenge</p>
+                            </div>
+                        </div>
+                        
+                        <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+                            {(reqTraits.includes('income_annual') || reqTraits.includes('age')) ? (
+                                <div className="space-y-4 text-left animate-in fade-in duration-500">
+                                    <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-2">
+                                        {reqTraits.includes('income_annual') ? 'Minimum Income Yield ($)' : 'Minimum Age Requirement'}
+                                    </label>
+                                    <div className="relative">
+                                        {reqTraits.includes('income_annual') && (
+                                            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-purple-400 font-bold">$</span>
+                                        )}
+                                        <input 
+                                            type="number" 
+                                            value={threshold} 
+                                            onChange={(e) => setThreshold(Number(e.target.value))} 
+                                            className={`w-full bg-black border border-[#2a2a2a] p-6 rounded-3xl font-black text-white focus:outline-none focus:border-purple-500 font-mono text-2xl ${reqTraits.includes('income_annual') ? 'pl-12' : 'pl-6'}`}
+                                        />
                                     </div>
                                 </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 mb-8">
-                                <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
-                                    <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest block mb-1">Verification Mode</span>
-                                    <span className="text-xs font-bold text-white uppercase italic">{activeInquiry.mode === 'zkp' ? 'ZK Income Proof' : 'Identity Seal'}</span>
-                                </div>
-                                <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
-                                    <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest block mb-1">Constraint</span>
-                                    <span className="text-xs font-bold text-white">&gt; ${activeInquiry.threshold.toLocaleString()}</span>
-                                </div>
-                            </div>
-
-                            <p className="text-[11px] text-slate-400 mb-8 leading-relaxed">
-                                <strong className="text-purple-400">Privacy Assurance:</strong> No raw values will be shared. Only a cryptographic proof of fact will be transmitted.
-                            </p>
-
-                            {activeInquiry.status === 'pending' ? (
-                                <button 
-                                    onClick={runFulfillInquiry}
-                                    disabled={loading}
-                                    className="w-full py-6 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-[0.3em] rounded-2xl shadow-[0_0_30px_rgba(147,51,234,0.3)] transition-all active:scale-95"
-                                >
-                                    {loading ? 'Computing Cryptographic Proof...' : 'Authorize & Fulfill Request'}
-                                </button>
-                            ) : activeInquiry.result ? (
-                                <div className="py-6 bg-green-500/20 border border-green-500/40 text-green-400 font-black uppercase text-center rounded-2xl flex items-center justify-center gap-3 animate-in fade-in zoom-in duration-500">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                    Verification Success: Proof Anchored
-                                </div>
                             ) : (
-                                <div className="py-6 bg-red-500/20 border border-red-500/40 text-red-400 font-black uppercase text-center rounded-2xl flex items-center justify-center gap-3 animate-in fade-in zoom-in duration-500">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                                    Verification Denied: Threshold Not Met
+                                <div className="space-y-4 text-left animate-in fade-in duration-500">
+                                    <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-2">Identity Verification</label>
+                                    <div className="bg-black/40 border border-[#2a2a2a] p-6 rounded-3xl font-black text-slate-500 italic text-sm">
+                                        Semantic Proof (No Numerical Bound Required)
+                                    </div>
                                 </div>
                             )}
+                            <div className="space-y-4 text-left">
+                                <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-2">Proof Complexity</label>
+                                <select 
+                                    value={verificationMode}
+                                    onChange={(e: any) => setVerificationMode(e.target.value)}
+                                    className="w-full bg-black border border-[#2a2a2a] p-6 rounded-3xl font-black text-white focus:outline-none appearance-none cursor-pointer hover:border-white/20 uppercase text-xs tracking-widest"
+                                >
+                                    <option value="zkp">ZK-Proof (Ultra Private)</option>
+                                    <option value="boolean">Direct Seal (Standard)</option>
+                                </select>
+                            </div>
                         </div>
-                    )}
-                 </div>
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* Protocol Logs */}
-        <div className="max-w-4xl mx-auto mt-16 pb-24">
-            <div className="fintech-card h-80 flex flex-col bg-black/40 backdrop-blur-xl border-white/5">
-                <div className="text-[10px] uppercase font-black text-slate-500 tracking-[0.3em] mb-4 flex justify-between items-center border-b border-white/5 pb-2">
-                    <span>Truth Engine Runtime Logs</span>
-                    <span className="text-purple-400/50">v2.5.0-beta</span>
+                        <div className="max-w-2xl mx-auto space-y-6">
+                           <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest block text-left ml-2">Identity Slots Required</label>
+                           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                                {[
+                                  { id: 'full_name', label: 'Identity Name' },
+                                  { id: 'age', label: 'Citizen Age' },
+                                  { id: 'income_annual', label: 'Gross Yield' },
+                                  { id: 'citizenship', label: 'Nationality' },
+                                  { id: 'address', label: 'Residency' }
+                                ].map(trait => (
+                                  <button 
+                                    key={trait.id}
+                                    onClick={() => {
+                                      setReqTraits(prev => 
+                                        prev.includes(trait.id) ? prev.filter(t => t !== trait.id) : [...prev, trait.id]
+                                      )
+                                    }}
+                                    className={`px-4 py-5 rounded-2xl border text-[10px] font-black uppercase tracking-tight transition-all ${reqTraits.includes(trait.id) ? 'bg-purple-500/10 border-purple-500 text-white shadow-[0_0_40px_rgba(168,85,247,0.1)]' : 'bg-black border-[#2a2a2a] text-slate-500 hover:border-white/20'}`}
+                                  >
+                                    {trait.label}
+                                  </button>
+                                ))}
+                           </div>
+                        </div>
+
+                        <div className="max-w-2xl mx-auto pt-8">
+                           <button 
+                             onClick={runCreateInquiryFlow}
+                             disabled={loading}
+                             className="btn-premium w-full py-8 text-base shadow-[0_0_40px_rgba(255,255,255,0.1)]"
+                           >
+                             {loading ? 'Confirming x402 Micropayment...' : 'Authorize Paid Inquiry'}
+                           </button>
+                        </div>
+
+                        {attestationCode && (
+                          <div className="max-w-xl mx-auto p-10 bg-green-500/5 border border-green-500/20 rounded-[2.5rem] animate-in slide-in-from-bottom-6">
+                             <div className="text-[10px] font-black uppercase text-green-500 tracking-[0.4em] mb-6">Challenge Fragment Generated</div>
+                             <div className="text-5xl font-black text-white font-mono tracking-tighter mb-8 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/40">{attestationCode}</div>
+                             
+                             <div className="flex gap-4 justify-center">
+                                <button 
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(attestationCode);
+                                        addLog('[UI] Code copied!');
+                                    }}
+                                    className="px-10 py-4 bg-white text-black text-[10px] font-black rounded-2xl hover:scale-105 transition-all uppercase tracking-widest"
+                                >
+                                    Copy ID
+                                </button>
+                                <button 
+                                    onClick={() => checkInquiryStatus(attestationCode)}
+                                    className="px-10 py-4 bg-purple-500 text-white text-[10px] font-black rounded-2xl hover:scale-105 transition-all uppercase tracking-widest shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+                                >
+                                    Check Status
+                                </button>
+                             </div>
+                          </div>
+                        )}
+
+                        {verificationResult !== null && (
+                            <div className={`mt-12 p-12 fintech-card border-dashed max-w-2xl mx-auto flex items-center justify-center gap-8 animate-in zoom-in duration-500 ${verificationResult.result ? 'border-green-500 bg-green-500/5' : 'border-red-500 bg-red-500/5'}`}>
+                                <div className={`w-20 h-20 rounded-full flex items-center justify-center border ${verificationResult.result ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-red-500/20 border-red-500/40 text-red-400'}`}>
+                                    {verificationResult.result ? (
+                                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                    ) : (
+                                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    )}
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="text-5xl font-black text-white uppercase italic tracking-tighter leading-none mb-2">
+                                        {verificationResult.result ? 'Verified' : 'Rejected'}
+                                    </h3>
+                                    <p className={`font-bold uppercase tracking-widest text-[10px] ${verificationResult.result ? 'text-green-400' : 'text-red-400'}`}>
+                                        {verificationResult.result ? 'Proof satisfies all protocol constraints' : (verificationResult.error || 'Proof fails to meet required thresholds')}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                     </div>
+                  </div>
+                ) : (
+                  /* CITIZEN VIEW */
+                  <div className="max-w-6xl mx-auto animate-in fade-in zoom-in duration-700">
+                    {!kycData ? (
+                         <div className="fintech-card text-center p-24 space-y-12 bg-gradient-to-b from-purple-500/5 to-transparent border-dashed">
+                             <div className="w-24 h-24 bg-purple-500/10 border border-purple-500/20 rounded-3xl mx-auto flex items-center justify-center">
+                                <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                              </div>
+                              <div className="space-y-4">
+                                <h2 className="text-6xl font-black uppercase tracking-tighter">Identity Anchor</h2>
+                                <p className="text-slate-400 max-w-md mx-auto">Commit your identity document to the decentralized ledger. Your PII is never stored; only a cryptographic anchor is generated.</p>
+                              </div>
+                              <div className="relative group max-w-sm mx-auto pt-6">
+                                <div className="btn-premium w-full flex items-center justify-center h-24">
+                                    <input 
+                                        type="file" 
+                                        accept=".pdf" 
+                                        onChange={uploadDocument}
+                                        disabled={loading}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                    />
+                                    {loading ? 'Anchoring to Algorand...' : 'Anchor Trusted Document'}
+                                </div>
+                              </div>
+                         </div>
+                    ) : (
+                      <div className="space-y-12 animate-in slide-in-from-bottom-10 duration-1000">
+                         {/* Vault Preview */}
+                         <div className="fintech-card bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20 p-12">
+                            <div className="flex justify-between items-start mb-16">
+                               <div>
+                                  <h3 className="text-3xl font-black uppercase tracking-tight text-white mb-2 leading-none">Your Identity Vault</h3>
+                                  <p className="text-[10px] text-slate-600 font-mono tracking-[0.5em] uppercase">Status: Ledger Commitment Active</p>
+                               </div>
+                               <div className="px-6 py-3 bg-green-500/10 text-green-400 text-[10px] font-black rounded-2xl border border-green-500/20 flex items-center gap-3">
+                                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+                                  SECURE SESSION
+                               </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                               {[
+                                  { label: 'Verified Full Name', value: kycData.verified_data?.full_name, icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+                                  { label: 'Citizen Age', value: kycData.verified_data?.age ? `${kycData.verified_data.age} Years` : 'Anchored', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+                                  { label: 'Annual Income Yield', value: kycData.verified_data?.income_annual ? `$${kycData.verified_data.income_annual.toLocaleString()}` : 'Analyzing...', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                                  { label: 'Citizenship', value: kycData.verified_data?.citizenship, icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2 2 2 0 012 2v.653M3 20h18M3 10a13.932 13.932 0 010 4M21 10a13.932 13.932 0 010 4' },
+                                  { label: 'Anchored Residency', value: kycData.verified_data?.address?.slice(0, 30) + '...', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
+                               ].map((item, idx) => (
+                                  <div key={idx} className="p-8 bg-black/60 rounded-[2.5rem] border border-[#2a2a2a] space-y-6 group hover:border-purple-500/50 transition-all hover:scale-[1.02] shadow-2xl">
+                                     <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-slate-500 group-hover:bg-purple-500 group-hover:text-white transition-all">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} /></svg>
+                                     </div>
+                                     <div>
+                                        <div className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-2">{item.label}</div>
+                                        <div className="text-lg font-bold text-white truncate">{item.value || 'Data Shielded'}</div>
+                                     </div>
+                                  </div>
+                               ))}
+                            </div>
+                         </div>
+
+                         <div className="fintech-card p-20 text-center bg-gradient-to-b from-purple-500/5 to-transparent">
+                            <h2 className="text-5xl font-black mb-6 uppercase tracking-tighter">Inquiry Fulfillment</h2>
+                            <p className="text-slate-500 mb-12 max-w-sm mx-auto text-sm">Decode a secure challenge code to provide a Zero-Knowledge proof of fact.</p>
+                            
+                            <div className="max-w-md mx-auto space-y-6">
+                                <input 
+                                    type="text" 
+                                    placeholder="TRU-XXXXXX"
+                                    value={inquiryCode}
+                                    onChange={(e) => setInquiryCode(e.target.value.toUpperCase())}
+                                    className="w-full bg-black border border-[#2a2a2a] p-6 rounded-2xl text-center text-4xl font-black text-purple-300 tracking-[0.1em] focus:outline-none focus:border-purple-500 transition-all font-mono shadow-inner"
+                                />
+                                <button 
+                                    onClick={() => runFetchInquiry(inquiryCode)}
+                                    disabled={loading || !inquiryCode}
+                                    className="btn-premium w-full h-20 text-sm tracking-[0.2em]"
+                                >
+                                    {loading ? 'Scanning Ledger...' : 'Access Request'}
+                                </button>
+                            </div>
+
+                            {activeInquiry && (
+                                <div className="mt-20 p-12 border border-purple-500/20 rounded-[3.5rem] bg-[#0A0A0A] text-left animate-in slide-in-from-top-10 duration-1000 max-w-4xl mx-auto shadow-2xl relative overflow-hidden">
+                                    <div className="flex justify-between items-start mb-12">
+                                        <div className="space-y-2">
+                                            <h3 className="text-3xl font-black uppercase text-white tracking-tight leading-none">Challenge Payload</h3>
+                                            <p className="text-[11px] text-slate-600 font-mono tracking-widest uppercase">{activeInquiry.id}</p>
+                                        </div>
+                                        <div className="px-6 py-2 bg-purple-500/10 text-purple-400 text-[10px] font-black rounded-2xl border border-purple-500/20 uppercase tracking-widest">Active Challenge</div>
+                                    </div>
+                                    
+                                    <div className="grid md:grid-cols-2 gap-8 mb-12">
+                                        <div className="p-8 bg-black rounded-[2rem] border border-[#2a2a2a] space-y-6">
+                                            <span className="text-[11px] text-slate-600 uppercase font-black tracking-[0.2em] block">Data Disclosure Scope</span>
+                                            <div className="flex flex-wrap gap-3">
+                                                {activeInquiry.requested_traits?.map((t: string) => (
+                                                    <span key={t} className="px-4 py-2 bg-purple-500/5 border border-purple-500/20 rounded-xl text-[10px] font-black text-purple-300 uppercase tracking-widest">{t.replace('_', ' ')}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="p-8 bg-black rounded-[2rem] border border-[#2a2a2a] space-y-3 flex flex-col justify-center">
+                                            <span className="text-[11px] text-slate-600 uppercase font-black tracking-[0.2em] block">Logic Constraint</span>
+                                            <div className="text-3xl font-black text-white leading-none tracking-tight">
+                                                {(activeInquiry.requested_traits?.includes('income_annual') || activeInquiry.requested_traits?.includes('age')) ? (
+                                                    <>
+                                                        {activeInquiry.requested_traits?.includes('income_annual') ? 'Income' : 'Age'} &gt; {activeInquiry.requested_traits?.includes('income_annual') ? '$' : ''}{activeInquiry.threshold.toLocaleString()}
+                                                    </>
+                                                ) : (
+                                                    'Identity Attestation'
+                                                )}
+                                            </div>
+                                            <div className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Method: {activeInquiry.mode === 'zkp' ? 'ZK-Proof (High Entropy)' : 'Boolean Seal'}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-purple-500/5 p-8 rounded-[2.5rem] border border-purple-500/10 mb-12 flex items-center gap-8">
+                                        <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0">
+                                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <span className="text-xs font-black uppercase text-white tracking-widest block">Privacy Shield Active</span>
+                                            <p className="text-sm text-slate-500 leading-relaxed font-medium">This verifier will receive a <span className="text-purple-400 font-bold uppercase">Mathematical Proof</span> of eligibility. No raw documents or values will be transmitted.</p>
+                                        </div>
+                                    </div>
+
+                                    {activeInquiry.status === 'pending' ? (
+                                        <button 
+                                            onClick={runFulfillInquiry}
+                                            disabled={loading}
+                                            className="btn-premium w-full py-10 text-lg tracking-[0.5em]"
+                                        >
+                                            {loading ? 'Computing ZK Proof...' : 'Initiate Private Fulfillment'}
+                                        </button>
+                                    ) : activeInquiry.result ? (
+                                        <div className="py-10 bg-green-500/5 border border-green-500/40 text-green-400 font-black uppercase text-center rounded-[3rem] flex items-center justify-center gap-6 animate-in fade-in zoom-in duration-1000 shadow-[0_0_50px_rgba(34,197,94,0.1)]">
+                                            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                            Verification Success: Fact Confirmed
+                                        </div>
+                                    ) : (
+                                        <div className="py-10 bg-red-500/5 border border-red-500/40 text-red-500 font-black uppercase text-center rounded-[3rem] flex items-center justify-center flex-col gap-2 animate-in fade-in zoom-in duration-1000">
+                                            <div className="flex items-center gap-6">
+                                                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                Verification Denied
+                                            </div>
+                                            {activeInquiry.error && <p className="text-[10px] opacity-60 normal-case font-mono mt-2 tracking-normal">{activeInquiry.error}</p>}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+             </div>
+          )}
+        </section>
+
+        {/* Diagnostic Layer */}
+        <section className="max-w-5xl mx-auto pb-48">
+            <div className="fintech-card h-[30rem] flex flex-col bg-black border-[#2a2a2a] p-10 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
+                    <svg className="w-48 h-48 text-purple-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-1 font-mono text-[9px] scrollbar-hide">
+                <div className="text-[10px] uppercase font-black text-slate-600 tracking-[0.6em] mb-8 flex justify-between items-center border-b border-[#2a2a2a] pb-6 relative z-10">
+                    <span className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                        Protocol Runtime Terminal
+                    </span>
+                    <span className="text-purple-400/50">Production Node v2.5.1-Stable</span>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-3 font-mono text-[10px] scrollbar-hide relative z-10">
                     {logs.map((log, i) => (
-                    <div key={i} className={`py-1 border-b border-white/5 last:border-0 ${log.includes('[ERROR]') ? 'text-red-400' : log.includes('[SUCCESS]') ? 'text-green-400' : log.includes('[TX]') ? 'text-blue-400' : 'text-slate-500'}`}>
-                        <span className="opacity-20 mr-2">[{new Date().toLocaleTimeString()}]</span> {log}
+                    <div key={i} className={`py-2 border-b border-white/5 last:border-0 ${log.includes('[ERROR]') ? 'text-red-400' : log.includes('[SUCCESS]') ? 'text-green-400 font-bold' : log.includes('[TX]') ? 'text-blue-400' : 'text-slate-600'}`}>
+                        <span className="opacity-30 mr-3">[{new Date().toLocaleTimeString()}]</span> {log}
                     </div>
                     ))}
-                    {logs.length === 0 && <div className="text-slate-800 italic uppercase font-black tracking-widest text-center mt-20 opacity-30 animate-pulse">Awaiting Payload...</div>}
+                    {logs.length === 0 && <div className="text-slate-800 italic uppercase font-black tracking-[1em] text-center mt-32 opacity-10 animate-pulse">Awaiting Payload Sequence...</div>}
                 </div>
             </div>
-        </div>
+        </section>
       </main>
+
+      <footer className="border-t border-[#1a1a1a] bg-[#050505] py-32 px-6 text-center">
+         <div className="max-w-7xl mx-auto space-y-12">
+            <div className="flex flex-col items-center gap-4">
+                <div className="text-3xl font-black tracking-tighter text-white">Trust<span className="text-purple-400">Anchor</span></div>
+                <div className="h-px w-20 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
+            </div>
+            <div className="flex flex-wrap justify-center gap-12 text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
+                <div className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-purple-500/40" /> Algorand Core</div>
+                <div className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-purple-500/40" /> gnark Cryptography</div>
+                <div className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-purple-500/40" /> x402 Protocol</div>
+            </div>
+            <p className="text-slate-700 text-[10px] font-medium tracking-widest leading-relaxed">© 2026 TrustAnchor Private Limited. All Identity Proofs are mathematically sealed.</p>
+         </div>
+      </footer>
 
       <ConnectWallet 
         openModal={openWalletModal} 

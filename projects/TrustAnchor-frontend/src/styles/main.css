@@ -2,10 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary: #050505;
+  --bg-surface: #0A0A0A;
+  --bg-card: #111111;
+  --accent-purple: #A78BFA;
+}
+
 @layer base {
   body {
-    @apply bg-[#000000] text-slate-200 antialiased selection:bg-purple-500/30;
-    font-family: 'Inter', -apple-system, sans-serif;
+    @apply bg-[#050505] text-slate-200 antialiased selection:bg-purple-500/30;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  h1, h2, h3, h4 {
+    font-family: 'Space Grotesk', sans-serif;
   }
 }
 
@@ -19,32 +30,36 @@
   }
 
   .fintech-card {
-    @apply bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 transition-all;
+    @apply bg-[#111111]/60 backdrop-blur-xl border border-[#2a2a2a] rounded-3xl p-6 transition-all;
   }
 
   .fintech-card:hover {
-    @apply border-purple-500/30 bg-black/60;
+    @apply border-purple-500/30 bg-[#111111]/80 shadow-[0_0_30px_rgba(167,139,250,0.05)];
   }
 
   .btn-premium {
-    @apply px-6 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:scale-[1.05] hover:shadow-[0_0_20px_rgba(255,255,255,0.4)] active:scale-[0.98] transition-all;
+    @apply px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] active:scale-[0.98] transition-all;
   }
 
-  .btn-lavender {
-    @apply px-6 py-3 bg-purple-500/10 border border-purple-500/30 text-purple-300 font-bold rounded-2xl hover:bg-purple-500/20 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-all;
+  .btn-outline {
+    @apply px-8 py-4 bg-transparent border border-[#2a2a2a] text-white font-bold rounded-2xl hover:border-purple-500/50 hover:bg-purple-500/5 transition-all;
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-purple-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-[#d1d5db] to-[#A78BFA];
   }
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #050505;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-white/10 rounded-full hover:bg-white/20;
+  background: #2a2a2a;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
 }

@@ -143,40 +143,27 @@ class ZKPService:
     ) -> ZKProofResult:
         """Generate proof using local gnark binary."""
         binary_path = Path(self.prove_binary_path)
-
         if not binary_path.exists():
             return ZKProofResult(
-                valid=False,
-                error=f"Prove binary not found at {self.prove_binary_path}",
-            )
-
-        keys_path = Path(self.keys_dir)
-        pk_path = keys_path / "pk.groth16.key"
-        vk_path = keys_path / "vk.groth16.key"
-
-        if not pk_path.exists():
-            return ZKProofResult(
-                valid=False,
-                error=f"Proving key not found at {pk_path}",
+                valid=False, error=f"Prover binary not found at {self.prove_binary_path}"
             )
 
         try:
-            # Ensure we have clean integers (strip decimals if they arrived as strings)
-            safe_secret = str(int(float(secret_value)))
-            safe_threshold = str(int(float(threshold)))
+            logger.info(f"[ZKP-PROVE] Generating: Value={secret_value}, Threshold={threshold}")
             
+            # Subcommand syntax: prover prove -secret <s> -threshold <t> -pk <pk>
+            keys_path = Path(self.keys_dir)
+            pk_path = keys_path / "pk.groth16.key"
+
             cmd = [
                 str(binary_path),
                 "prove",
-                "--secret",
-                safe_secret,
-                "--threshold",
-                safe_threshold,
-                "--pk",
-                str(pk_path),
+                "-secret", str(int(float(secret_value))),
+                "-threshold", str(int(float(threshold))),
+                "-pk", str(pk_path)
             ]
             
-            logger.info(f"[ZKP] Running command: {' '.join(cmd)}")
+            logger.debug(f"[ZKP-PROVE] Executing: {' '.join(cmd)}")
 
             result = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -187,23 +174,18 @@ class ZKPService:
             stdout, stderr = await result.communicate()
 
             if result.returncode != 0:
-                logger.error(f"Prove binary failed: {stderr.decode()}")
-                logger.error(f"Stdout: {stdout.decode()[:500]}")
-                return ZKProofResult(
-                    valid=False,
-                    error=f"Proof generation failed: {stderr.decode()}",
-                )
-
-            import re
+                err_msg = stderr.decode().strip()
+                logger.error(f"[ZKP-PROVE] Failure: {err_msg}")
+                return ZKProofResult(valid=False, error=f"Prover error: {err_msg}")
 
             output = stdout.decode().strip()
-            # gnark often prints "INF" logger statements before the JSON output
+            logger.debug(f"[ZKP-PROVE] Output: {output}")
+            
             json_str = output
             if "{" in output:
                 json_str = "{" + output.split("{", 1)[1]
-                
+            
             proof_data = json.loads(json_str)
-
             return ZKProofResult(
                 valid=True,
                 proof=ZKProof(
@@ -214,13 +196,8 @@ class ZKPService:
                     verification_key_hash=proof_data.get("vk_hash"),
                 ),
             )
-
-        except asyncio.TimeoutError:
-            return ZKProofResult(valid=False, error="Proof generation timed out")
-        except json.JSONDecodeError as e:
-            return ZKProofResult(valid=False, error=f"Invalid proof output: {str(e)}")
         except Exception as e:
-            logger.error(f"Proof generation error: {e}")
+            logger.error(f"[ZKP-PROVE] Exception: {e}")
             return ZKProofResult(valid=False, error=str(e))
 
     async def verify_proof(
@@ -231,17 +208,13 @@ class ZKPService:
     ) -> ZKProofResult:
         """
         Verify a ZK proof.
-
-        Args:
-            proof: The proof to verify (base64 encoded)
-            public_inputs: Public inputs including threshold
-            threshold: Expected threshold value
-
-        Returns:
-            ZKProofResult with verification status
         """
-        # Ensure both are integers for comparison (the prover may return string)
-        provided_threshold = int(float(public_inputs.get("threshold", 0)))
+        # Case-insensitive lookup for 'threshold'
+        raw_threshold = public_inputs.get("threshold") or public_inputs.get("Threshold") or 0
+        provided_threshold = int(float(raw_threshold))
+        
+        logger.info(f"[ZKP-VERIFY] Checking: Provided={provided_threshold}, Expected={threshold}")
+        
         if provided_threshold != int(threshold):
             return ZKProofResult(
                 valid=False,
@@ -295,33 +268,23 @@ class ZKPService:
     ) -> ZKProofResult:
         """Verify proof using local gnark binary."""
         binary_path = Path(self.prove_binary_path)
-
         if not binary_path.exists():
-            return ZKProofResult(
-                valid=False,
-                error=f"Verify binary not found at {self.prove_binary_path}",
-            )
+            return ZKProofResult(valid=False, error="Verifying binary missing")
 
         try:
-            proof_bytes = base64.b64decode(proof)
-            proof_b64 = base64.b64encode(proof_bytes).decode()
-            
-            # Subcommand syntax: prover verify --proof <p> --public <pj> --vk <vk>
             keys_path = Path(self.keys_dir)
             vk_path = keys_path / "vk.groth16.key"
 
+            # Subcommand syntax: prover verify -proof <p> -public <pj> -vk <vk>
             cmd = [
                 str(binary_path),
                 "verify",
-                "--proof",
-                proof_b64,
-                "--public",
-                json.dumps(public_inputs),
-                "--vk",
-                str(vk_path),
+                "-proof", proof,
+                "-public", json.dumps(public_inputs),
+                "-vk", str(vk_path),
             ]
 
-            logger.info(f"[ZKP] Running verification: {' '.join(cmd)}")
+            logger.info(f"[ZKP-VERIFY] Executing command: {' '.join(cmd)}")
 
             result = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -332,32 +295,26 @@ class ZKPService:
             stdout, stderr = await result.communicate()
 
             if result.returncode != 0:
-                logger.error(f"Verify binary failed: {stderr.decode()}")
-                return ZKProofResult(
-                    valid=False,
-                    error=f"Verification script error: {stderr.decode()}",
-                )
+                err_msg = stderr.decode().strip()
+                logger.error(f"[ZKP-VERIFY] Failure: {err_msg}")
+                return ZKProofResult(valid=False, error=err_msg)
 
-            # Parse the JSON output from stdout
             output = stdout.decode().strip()
-            logger.info(f"[ZKP] Binary output: {output}")
+            logger.info(f"[ZKP-VERIFY] Binary result: {output}")
             
-            # Handle potential gnark logs before JSON
             json_str = output
             if "{" in output:
                 json_str = "{" + output.split("{", 1)[1]
             
             data = json.loads(json_str)
             is_valid = data.get("valid", False)
-            logger.info(f"[ZKP] Parsed validity: {is_valid}")
             
             return ZKProofResult(
                 valid=is_valid,
                 proof=ZKProof(proof=proof, public_inputs=public_inputs),
             )
-
         except Exception as e:
-            logger.error(f"Proof verification error: {e}")
+            logger.error(f"[ZKP-VERIFY] Error: {e}")
             return ZKProofResult(valid=False, error=str(e))
 
 
