@@ -13,9 +13,14 @@ py-algorand-sdk>=2.0.0
 # HTTP Client
 httpx>=0.26.0
 
+# Data Processing & Document Intelligence
+pdfplumber>=0.10.4
+python-multipart>=0.0.9
+
 # Configuration
 python-dotenv>=1.0.0
 pydantic>=2.5.0
+pydantic-settings>=2.1.0
 
 # Security (for key management)
 cryptography>=42.0.0
