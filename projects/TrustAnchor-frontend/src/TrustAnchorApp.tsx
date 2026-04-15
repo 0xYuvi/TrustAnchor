@@ -464,7 +464,44 @@ const TrustAnchorApp: React.FC = () => {
                       </div>
                  </div>
             ) : (
-              <div className="space-y-8">
+              <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-700">
+                 {/* Identity Vault Preview */}
+                 <div className="grid lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-12">
+                       <div className="fintech-card bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20 p-8">
+                          <div className="flex justify-between items-center mb-10">
+                             <div>
+                                <h3 className="text-xl font-black uppercase tracking-tight text-white mb-1">Your Identity Vault</h3>
+                                <p className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">Verified & Anchored on Algorand</p>
+                             </div>
+                             <div className="px-4 py-2 bg-green-500/20 text-green-400 text-[10px] font-black rounded-2xl border border-green-500/30 flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                SECURE ANCHOR ACTIVE
+                             </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                             {[
+                                { label: 'Extracted Name', value: kycData.verified_data?.full_name, icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+                                { label: 'Verified Income', value: kycData.verified_data?.income_annual ? `$${kycData.verified_data.income_annual.toLocaleString()}` : 'N/A', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                                { label: 'Citizenship', value: kycData.verified_data?.citizenship, icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2 2 2 0 012 2v.653M3 20h18M3 10a13.932 13.932 0 010 4M21 10a13.932 13.932 0 010 4' },
+                                { label: 'Resident Address', value: kycData.verified_data?.address?.slice(0, 30) + '...', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
+                             ].map((item, idx) => (
+                                <div key={idx} className="p-6 bg-black/40 rounded-3xl border border-white/5 space-y-3 group hover:border-purple-500/50 transition-all">
+                                   <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-purple-400 transition-colors">
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} /></svg>
+                                   </div>
+                                   <div>
+                                      <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.label}</div>
+                                      <div className="text-sm font-bold text-white truncate">{item.value || 'Not Detected'}</div>
+                                   </div>
+                                </div>
+                             ))}
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+
                  <div className="fintech-card p-12 text-center bg-gradient-to-b from-purple-500/5 to-transparent border-purple-500/20">
                     <h2 className="text-3xl font-black mb-4 uppercase tracking-tighter">Inquiry Fulfillment</h2>
                     <p className="text-slate-400 mb-8 max-w-md mx-auto">Enter the secure inquiry code provided by an enterprise to unlock their request.</p>

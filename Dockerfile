@@ -1,7 +1,7 @@
 # Stage 1: Build the Go Prover from source
 FROM golang:1.21-alpine as prover-builder
 WORKDIR /app
-# Copy the circuit source from the repo root
+# Copy only the circuits folder
 COPY circuits/ ./circuits/
 RUN cd circuits && go build -o /app/prover cmd/prover/main.go
 
@@ -14,14 +14,14 @@ RUN apt-get update && apt-get install -y \
     libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
+# Copy backend requirements and install
 COPY projects/TrustAnchor-backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source
+# Copy the entire backend folder into /app
 COPY projects/TrustAnchor-backend/ .
 
-# Copy the compiled prover from Stage 1
+# Copy the compiled prover from Stage 1 into the same /app folder
 COPY --from=prover-builder /app/prover .
 
 # Ensure binary is executable
@@ -29,8 +29,10 @@ RUN chmod +x prover
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8000
+ENV PORT=10000
 
-EXPOSE 8000
+# Expose Render's default port or use the override
+EXPOSE 10000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
