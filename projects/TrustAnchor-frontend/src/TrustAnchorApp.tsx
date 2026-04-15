@@ -151,14 +151,19 @@ const TrustAnchorApp: React.FC = () => {
         addLog(`[PAYMENT] Inquiry Fee Required: ${amountRequired / 1_000_000} ALGO`)
         
         const algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', '')
+        const suggestedParams = await algodClient.getTransactionParams().do()
+        
+        const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          sender: activeAddress,
+          receiver: ISSUER_ADDR,
+          amount: BigInt(PAYMENT_FEE),
+          suggestedParams: suggestedParams,
+          note: new TextEncoder().encode(`TrustAnchor Inquiry: ${verificationMode}`)
+        })
+        
         setStep('submit')
         
-        const encodedTxs = await x402.createPaymentTransactions(payPayload)
-        if (!encodedTxs || encodedTxs.length === 0) {
-          throw new Error("Failed to generate payment transactions")
-        }
-
-        const signedTxs = await signTransactions(encodedTxs)
+        const signedTxs = await signTransactions([paymentTxn.toByte()])
         const { txId } = await algodClient.sendRawTransaction(signedTxs).do()
         
         addLog(`[TX] Confirmed: ${txId}`)
