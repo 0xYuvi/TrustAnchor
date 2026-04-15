@@ -164,7 +164,23 @@ class ZKPService:
 
         try:
             logger.info(f"[ZKP-PROVE] Generating: Value={secret_value}, Threshold={threshold}")
+            import platform
+            logger.info(f"[ZKP-DIAG] OS: {platform.system()}, Arch: {platform.machine()}")
+            logger.info(f"[ZKP-DIAG] Prover Path: {binary_path} (Abs: {binary_path.absolute()})")
+            logger.info(f"[ZKP-DIAG] Keys Dir: {self.keys_dir}")
             
+            # Ensure prover is executable
+            if binary_path.exists():
+                os.chmod(binary_path, 0o755)
+                try:
+                    import subprocess
+                    file_info = subprocess.check_output(['file', str(binary_path)]).decode()
+                    logger.info(f"[ZKP-DIAG] Binary Info: {file_info.strip()}")
+                except Exception:
+                    pass
+            else:
+                logger.error(f"[ZKP-PROVE] CRITICAL: Prover binary NOT found at {binary_path.absolute()}")
+
             # Subcommand syntax: prover prove -secret <s> -threshold <t> -pk <pk>
             keys_path = Path(self.keys_dir)
             pk_path = keys_path / "pk.groth16.key"
@@ -176,25 +192,6 @@ class ZKPService:
                 "-threshold", str(int(float(threshold))),
                 "-pk", str(pk_path)
             ]
-            
-            # Diagnostic: Log OS and Binary info in production
-            import platform
-            logger.info(f"[ZKP-DIAG] OS: {platform.system()}, Arch: {platform.machine()}")
-        logger.info(f"[ZKP-DIAG] Prover Path: {self.prover_binary} (Abs: {os.path.abspath(self.prover_binary)})")
-        logger.info(f"[ZKP-DIAG] Keys Dir: {self.keys_dir} (Abs: {os.path.abspath(self.keys_dir)})")
-        
-        # Ensure prover is executable (redundant but safe)
-        if os.path.exists(self.prover_binary):
-            os.chmod(self.prover_binary, 0o755)
-        else:
-            logger.error(f"[ZKP-PROVE] CRITICAL: Prover binary NOT found at {os.path.abspath(self.prover_binary)}")
-            
-            try:
-                import subprocess
-                file_info = subprocess.check_output(['file', str(binary_path)]).decode()
-                logger.info(f"[ZKP-DIAG] Binary Info: {file_info.strip()}")
-            except:
-                pass
 
             logger.debug(f"[ZKP-PROVE] Executing: {' '.join(cmd)}")
 
