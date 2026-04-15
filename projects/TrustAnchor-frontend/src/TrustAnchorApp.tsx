@@ -165,7 +165,7 @@ const TrustAnchorApp: React.FC = () => {
         
         const signedTxsRaw = await signTransactions([paymentTxn.toByte()])
         const signedTxs = signedTxsRaw.filter((tx): tx is Uint8Array => tx !== null)
-        const result = await algodClient.sendRawTransaction(signedTxs).do() as { txId: string }
+        const result = (await algodClient.sendRawTransaction(signedTxs).do()) as unknown as { txId: string }
         const txId = result.txId
         
         addLog(`[TX] Confirmed: ${txId}`)
