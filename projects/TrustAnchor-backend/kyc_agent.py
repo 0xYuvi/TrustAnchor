@@ -138,10 +138,16 @@ class KYCAgent:
                 # Get transaction params
                 params = self.algod.suggested_params()
 
-                # Create application call transaction
+                # ARC-4 selector for register_anchor(byte[],byte[])
+                # SHA512_256("register_anchor(byte[],byte[])")[:4] = 0xd8873ced
+                method_selector = bytes.fromhex("d8873ced")
+                
                 app_args = [
-                    b"anchor_identity",
-                    commitment.encode(),
+                    method_selector,
+                    # trait_id (byte[] with length prefix for ARC-4)
+                    (len("income_annual").to_bytes(2, "big") + "income_annual".encode()),
+                    # commitment (byte[] with length prefix for ARC-4)
+                    (len(commitment).to_bytes(2, "big") + commitment.encode()),
                 ]
 
                 txn = ApplicationCallTxn(
@@ -150,6 +156,7 @@ class KYCAgent:
                     index=TRUST_ANCHOR_APP_ID,
                     on_complete=OnComplete.NoOpOC,
                     app_args=app_args,
+                    boxes=[(TRUST_ANCHOR_APP_ID, b"anchor_income_annual")],
                 )
 
                 # Sign and send

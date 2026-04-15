@@ -148,6 +148,14 @@ class ZKPService:
                 valid=False, error=f"Prover binary not found at {self.prove_binary_path}"
             )
 
+        # Set executable permission in production (Linux/Mac)
+        if os.name != 'nt':
+            try:
+                st = os.stat(binary_path)
+                os.chmod(binary_path, st.st_mode | 0o111)
+            except Exception as e:
+                logger.warning(f"Could not set executable bit on {binary_path}: {e}")
+
         try:
             logger.info(f"[ZKP-PROVE] Generating: Value={secret_value}, Threshold={threshold}")
             
