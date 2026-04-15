@@ -15,25 +15,15 @@ TrustAnchor is a privacy-preserving identity and verification marketplace on Alg
 │                        TrustAnchor Flow                                  │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│  ┌──────────┐     X402      ┌──────────────────┐     On-Chain          │
-│  │ Consumer │ ──────────────► │ Issuer Agent     │ ──────────────►       │
-│  │          │   Payment     │ (FastAPI)       │   Verification         │
-│  │          │   (0.5 ALGO)  │                 │   (TruthRegistry)     │
-│  └──────────┘               └──────────────────┘                       │
-│                                    │                                    │
-│                                    │ ZKP                                 │
-│                                    ▼                                    │
-│                          ┌──────────────────┐                          │
-│                          │ ZKP Service     │                          │
-│                          │ (gnark binary)   │                          │
-│                          └──────────────────┘                          │
-│                                    │                                    │
-│                                    │ Proof                              │
-│                                    ▼                                    │
-│  ┌──────────┐               ┌──────────────────┐                       │
-│  │ Bank     │ ◄──────────────│ TruthRegistry   │                       │
-│  │ (Anchor) │   Commitment   │ (Smart Contract) │                       │
-│  └──────────┘               └──────────────────┘                       │
+│  ┌──────────┐     Generate      ┌──────────────────┐     Share Bundle   │
+│  │ Citizen  │ ───────────────► │ TrustAnchor      │ ────────────────►      │
+│  │ (Prover) │     (FREE)       │ Backend (Prover) │   (Base64 Code)       │
+│  └──────────┘                  └──────────────────┘                       │
+│                                                                          │
+│  ┌──────────┐     Pay & Verify  ┌──────────────────┐     On-Chain Result  │
+│  │ Enterprise│ ───────────────► │ TrustAnchor      │ ────────────────►      │
+│  │ (Verifier)│   (0.05 ALGO)    │ Backend (Verify) │   (TruthRegistry)     │
+│  └──────────┘                  └──────────────────┘                       │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```

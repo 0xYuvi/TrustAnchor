@@ -60,6 +60,7 @@ class IncomeVerificationRequest(BaseModel):
     )
     threshold: Optional[float] = Field(0, description="Income threshold to verify against")
     secret_value: Optional[float] = Field(None, description="Secret income value (required for ZKP mode)")
+    requested_traits: Optional[list[str]] = Field(None, description="List of traits to verify (e.g. ['full_name', 'age'])")
 
 
 class IncomeVerificationResponse(BaseModel):
@@ -69,9 +70,20 @@ class IncomeVerificationResponse(BaseModel):
     user_id: str
     mode: str
     threshold: float
-    proof: Optional[dict] = None
+    proof: Optional[str] = None
+    public_inputs: Optional[dict] = None
     txid: Optional[str] = None
     payment_amount: float
+
+
+class AttestationBundle(BaseModel):
+    """A portable package containing a ZK proof and its public context."""
+
+    proof: str
+    public_inputs: dict
+    user_id: str
+    threshold: float
+    mode: str
 
 
 class BooleanResult(BaseModel):
@@ -84,8 +96,28 @@ class ZKPResult(BaseModel):
     """Result for ZKP mode verification."""
 
     result: bool
-    proof: dict
+    proof: str
     public_inputs: dict
+
+
+class Inquiry(BaseModel):
+    """A verification request issued by an enterprise and paid for up-front."""
+
+    id: str
+    mode: str
+    threshold: float
+    status: Literal["pending", "fulfilled", "failed"] = "pending"
+    verifier_address: Optional[str] = None
+    prover_id: Optional[str] = None
+    requested_traits: list[str] = Field(default_factory=lambda: ["income_annual"])
+    result: Optional[bool] = None
+    proof: Optional[str] = None
+    public_inputs: Optional[dict] = None
+    payment_txid: Optional[str] = None
+
+
+# In-memory store for demo (should be database/box for production)
+inquiry_registry: dict[str, Inquiry] = {}
 
 
 payment_verifier: Optional[PaymentVerifier] = None
@@ -440,17 +472,52 @@ async def get_kyc_status(user_address: str):
 # Verification Endpoint
 # =============================================================================
 
+@app.post("/attestation/generate", response_model=ZKPResult)
+async def generate_attestation(request: IncomeVerificationRequest):
+    """
+    Generate a ZK attestation for a user claim.
+    This endpoint is FREE for the citizen to use.
+    """
+    if not zkp_service:
+        raise HTTPException(status_code=500, detail="ZKP Service not initialized")
 
-@app.post("/verify/income")
-async def verify_income(
-    request: IncomeVerificationRequest,
+    if request.mode == "zkp":
+        if not request.secret_value:
+            raise HTTPException(status_code=400, detail="secret_value required for ZKP")
+
+        proof_result = await zkp_service.generate_proof(
+            secret_value=int(request.secret_value),
+            threshold=int(request.threshold),
+            user_id=request.user_id,
+        )
+
+        if not proof_result.valid or not proof_result.proof:
+            raise HTTPException(
+                status_code=500, detail=f"Proof generation failed: {proof_result.error}"
+            )
+
+        return ZKPResult(
+            result=True,
+            proof=proof_result.proof.proof,
+            public_inputs=proof_result.proof.public_inputs,
+        )
+    else:
+        # For boolean mode, we just return a simple "Signed Statement" mock
+        return ZKPResult(
+            result=True,
+            proof="SIGNED_IDENTITY_SEAL_V1",
+            public_inputs={"threshold": request.threshold, "user_id": request.user_id},
+        )
+
+
+@app.post("/inquiry/create", response_model=dict)
+async def create_inquiry(
     http_request: Request,
+    request: IncomeVerificationRequest,
 ):
     """
-    Verify income threshold using boolean or ZKP mode.
-
-    Requires x402 payment. The payment amount depends on the verification mode:
-    For ZKP mode, provide secret_value which will be proven to be greater than threshold.
+    Create a verification inquiry.
+    PAID by the Verifier.
     """
     txid = http_request.headers.get("x402-payment-proof") or http_request.headers.get(
         "X402-Payment-Proof"
@@ -461,7 +528,7 @@ async def verify_income(
         raise HTTPException(
             status_code=402,
             detail={
-                "error": "Payment required",
+                "error": "Payment required to issue inquiry",
                 "paymentRequirements": [
                     {
                         "maximumAmountRequired": expected_amount,
@@ -472,42 +539,89 @@ async def verify_income(
             },
         )
 
-    payer_address = "wallet_user"
+    # Verify payment
+    if not payment_verifier:
+        raise HTTPException(status_code=500, detail="Payment Verifier not initialized")
 
-    logger.info(
-        f"Income verification request: user={request.user_id}, "
-        f"mode={request.mode}, threshold={request.threshold}, "
-        f"payer={payer_address}, txid={txid}"
+    verification = await payment_verifier.verify_payment(
+        txid=txid,
+        expected_amount=expected_amount,
     )
 
-    if request.mode == VerificationMode.BOOLEAN:
-        return await _verify_boolean(
-            request.user_id,
-            request.threshold,
-            payer_address,
-            txid,
-            expected_amount,
-        )
+    if not verification.valid:
+        raise HTTPException(status_code=400, detail=verification.error)
 
-    elif request.mode == VerificationMode.ZKP:
-        if not request.secret_value:
-            raise HTTPException(
-                status_code=400,
-                detail="secret_value required for ZKP mode",
-            )
-        return await _verify_zkp(
-            request.user_id,
-            request.secret_value,
-            request.threshold,
-            payer_address,
-            txid,
-            expected_amount,
-        )
+    # Generate random 6-character code
+    import string
+    import random
 
-    raise HTTPException(
-        status_code=400,
-        detail=f"Invalid mode: {request.mode}",
+    inquiry_id = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    inquiry_id = f"TRU-{inquiry_id}"
+
+    new_inquiry = Inquiry(
+        id=inquiry_id,
+        mode=request.mode,
+        threshold=request.threshold,
+        requested_traits=request.requested_traits or ["income_annual"],
+        payment_txid=txid,
     )
+
+    inquiry_registry[inquiry_id] = new_inquiry
+
+    logger.info(f"[Inquiry] Created: {inquiry_id} for mode={request.mode}")
+
+    return {"inquiry_id": inquiry_id, "status": "pending"}
+
+
+@app.get("/inquiry/status/{inquiry_id}", response_model=Inquiry)
+async def get_inquiry_status(inquiry_id: str):
+    """Check status of an inquiry."""
+    if inquiry_id not in inquiry_registry:
+        raise HTTPException(status_code=404, detail="Inquiry not found")
+    return inquiry_registry[inquiry_id]
+
+
+@app.post("/inquiry/fulfill/{inquiry_id}")
+async def fulfill_inquiry(inquiry_id: str, bundle: AttestationBundle):
+    """
+    Fulfill a verification inquiry with a proof.
+    FREE for the Citizen.
+    """
+    if inquiry_id not in inquiry_registry:
+        raise HTTPException(status_code=404, detail="Inquiry not found")
+
+    inquiry = inquiry_registry[inquiry_id]
+
+    if inquiry.status != "pending":
+        raise HTTPException(status_code=400, detail="Inquiry already processed")
+
+    # Verify proof against inquiry requirements
+    if bundle.mode != inquiry.mode:
+        raise HTTPException(status_code=400, detail="Mode mismatch")
+
+    if not zkp_service:
+        raise HTTPException(status_code=500, detail="ZKP Service not initialized")
+
+    if inquiry.mode == "zkp":
+        zkp_result = await zkp_service.verify_proof(
+            proof=bundle.proof,
+            public_inputs=bundle.public_inputs,
+            threshold=int(inquiry.threshold),
+        )
+        is_valid = zkp_result.valid
+    else:
+        is_valid = bundle.proof == "SIGNED_IDENTITY_SEAL_V1"
+
+    # Update inquiry status
+    inquiry.status = "fulfilled"
+    inquiry.result = is_valid
+    inquiry.proof = bundle.proof
+    inquiry.public_inputs = bundle.public_inputs
+    inquiry.prover_id = bundle.user_id
+
+    logger.info(f"[Inquiry] Fulfilled: {inquiry_id}, Result: {is_valid}")
+
+    return {"status": "fulfilled", "result": is_valid}
 
 
 async def _verify_boolean(

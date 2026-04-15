@@ -28,6 +28,7 @@ interface KYCData {
   full_name?: string
   income_annual?: number
   citizenship?: string
+  verified_data?: any
 }
 
 const APP_ID = 758839639
@@ -40,18 +41,26 @@ const TrustAnchorApp: React.FC = () => {
   const [openWalletModal, setOpenWalletModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState('idle')
-  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null)
-  const [zkProof, setZkProof] = useState<ZKProofData | null>(null)
+  const [verificationResult, setVerificationResult] = useState<any>(null)
   const [kycData, setKycData] = useState<KYCData | null>(null)
   const [error, setError] = useState('')
   const [logs, setLogs] = useState<string[]>([])
 
   const [userId, setUserId] = useState('')
   const [threshold, setThreshold] = useState(50000)
-  const [secretValue, setSecretValue] = useState(75000)
   const [verificationMode, setVerificationMode] = useState<'boolean' | 'zkp'>('zkp')
   
-  // Selective Disclosure State
+  const [portalMode, setPortalMode] = useState<'citizen' | 'verifier'>('citizen')
+  const [attestationCode, setAttestationCode] = useState<string | null>(null)
+  
+  // Inquiry Flow State
+  const [inquiryCode, setInquiryCode] = useState('')
+  const [activeInquiry, setActiveInquiry] = useState<any>(null)
+  
+  // Verifier Request State
+  const [reqTraits, setReqTraits] = useState<string[]>(['income_annual'])
+
+  // Selective Disclosure State (Citizen View)
   const [discloseName, setDiscloseName] = useState(false)
   const [discloseIncome, setDiscloseIncome] = useState(true)
   const [discloseCitizenship, setDiscloseCitizenship] = useState(false)
@@ -73,7 +82,6 @@ const TrustAnchorApp: React.FC = () => {
     try {
       setStep('kyc')
       addLog(`[KYC] Scanning document: ${file.name}...`)
-      addLog(`[USER] ${activeAddress.slice(0, 8)}...`)
       
       const formData = new FormData()
       formData.append('file', file)
@@ -95,152 +103,74 @@ const TrustAnchorApp: React.FC = () => {
       setStep('anchored')
       addLog('[KYC] Identity anchored successfully!')
       addLog(`[KYC_ID] ${data.kyc_id}`)
-      addLog(`[COMMITMENT] ${data.commitment.slice(0, 16)}...`)
-      if (data.verified_data) {
-        addLog(`[DATA] Income: $${data.verified_data.income_annual?.toLocaleString()}`)
-        addLog(`[DATA] Citizenship: ${data.verified_data.citizenship}`)
-      }
-      
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'KYC anchoring failed'
-      setError(msg)
-      addLog(`[ERROR] ${msg}`)
+    } catch (err: any) {
+      setError(err.message)
+      addLog(`[ERROR] ${err.message}`)
     } finally {
       setLoading(false)
     }
   }
 
-  const checkKYCStatus = async () => {
-    if (!activeAddress) return
-    
-    try {
-      const response = await fetch(`${BACKEND_URL}/kyc/status/${activeAddress}`)
-      if (response.ok) {
-        const data = await response.json()
-        if (data.anchored) {
-          setKycData(data)
-          setStep('anchored')
-        }
-      }
-    } catch {
-      // Ignore - user hasn't anchored yet
-    }
-  }
+  // --- ENTERPRISE LOGIC ---
 
-  const runVerificationFlow = async () => {
+  const runCreateInquiryFlow = async () => {
     if (!activeAddress || !transactionSigner) {
-      setError('Please connect wallet first')
+      setError('Verifier: Connect wallet')
       return
     }
 
     setLoading(true)
     setError('')
-setStep('init')
-      setVerificationResult(null)
-      setZkProof(null)
-      setLogs([])
+    setLogs([])
+    addLog('[VERIFIER] Initiating Identity Inquiry...')
 
-      // Check if KYC anchor exists
-      if (!kycData) {
-        setError('Please complete KYC anchoring first')
-        addLog('[ERROR] No KYC anchor found')
-        setLoading(false)
-        return
-      }
+    const payload = {
+      user_id: "ANONYMOUS_PROVER",
+      mode: verificationMode,
+      threshold: threshold,
+      requested_traits: reqTraits
+    }
 
-      // Verify that secret value matches anchored income (for demo)
-      if (verificationMode === 'zkp' && kycData.income_annual) {
-        if (secretValue !== kycData.income_annual) {
-          addLog(`[WARN] Using anchored income: $${kycData.income_annual}`)
-          setSecretValue(kycData.income_annual)
-        }
-      }
-
-      try {
+    try {
       setStep('request')
-      addLog(`[REQUEST] POST /verify/income (${verificationMode})`)
-      
-      // Logic: If they chose ZKP but didn't select Income, we MUST use boolean mode 
-      // as our only ZK circuit is income-based.
-      const actualMode = (verificationMode === 'zkp' && !discloseIncome) ? 'boolean' : verificationMode;
-
-      const payload: any = {
-        user_id: userId || activeAddress.slice(0, 8),
-        mode: actualMode,
-        threshold: threshold,
-      }
-      
-      const traits = [discloseName, discloseCitizenship, discloseAge, discloseAddress].filter(x => x).length
-      addLog(`[REDACTED] Selected ${traits} out of 4 total anchored traits.`)
-      if (!discloseName && kycData.verified_data?.full_name) {
-          addLog(`[REDACTED] Stripping Full Name from payload...`)
-      }
-      if (!discloseCitizenship && kycData.verified_data?.citizenship) {
-          addLog(`[REDACTED] Stripping Citizenship from payload...`)
-      }
-      if (!discloseAge && kycData.verified_data?.age) {
-          addLog(`[REDACTED] Stripping Age from payload...`)
-      }
-      if (!discloseAddress && kycData.verified_data?.address) {
-          addLog(`[REDACTED] Stripping Address from payload...`)
-      }
-      
-      if (verificationMode === 'zkp') {
-        payload.secret_value = secretValue
-      }
-
-      let response = await fetch('http://localhost:8000/verify/income', {
+      let response = await fetch(`${BACKEND_URL}/inquiry/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
 
-      // Handle 402 Payment Required
       if (response.status === 402) {
         setStep('payment')
         const data = await response.json()
         const reqs = data.detail?.paymentRequirements?.[0] || data.detail?.[0]
         
-        if (!reqs) throw new Error('Invalid 402 response: Missing payment requirements')
         const amountRequired = reqs.maximumAmountRequired || PAYMENT_FEE
         const payTo = reqs.payTo || ISSUER_ADDR
 
-        addLog(`[PAYMENT] Payment Required: ${amountRequired / 1_000_000} ALGO`)
+        addLog(`[PAYMENT] Inquiry Fee Required: ${amountRequired / 1_000_000} ALGO`)
         
-        addLog(`[TX] Fetching network params...`)
-        // Initialize Algod client natively to avoid v3 .bc fetch bugs
         const algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', '')
         const suggestedParams = await algodClient.getTransactionParams().do()
         
-        addLog(`[TX] Building payment txn...`)
-        // Use makePaymentTxn with BigInt cast to bypass v3 bugs while keeping correct suggestedParams mapping
         const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: activeAddress,
           receiver: payTo,
           amount: BigInt(amountRequired),
           suggestedParams: suggestedParams,
-          note: new TextEncoder().encode('TrustAnchor x402 payment')
+          note: new TextEncoder().encode(`TrustAnchor Inquiry: ${verificationMode}`)
         })
         
         setStep('submit')
-        addLog(`[TX] Signing with wallet...`)
-        
         const encodedTxn = paymentTxn.toByte()
         const signedTxns = await signTransactions([encodedTxn])
-        
-        addLog(`[TX] Sending via node...`)
         const txId = paymentTxn.txID().toString()
-        // @ts-ignore - wallet signing return type varies
         await algodClient.sendRawTransaction(signedTxns[0]).do()
-        addLog(`[TX] Pending: ${txId}`)
         
-        addLog(`[TX] Waiting for confirmation...`)
+        addLog(`[TX] Confirmed: ${txId}`)
         await algosdk.waitForConfirmation(algodClient, txId, 4)
-        addLog(`[TX] Confirmed!`)
         
-        setStep('prove')
-        addLog(`[REQUEST] Resubmitting with payment proof...`)
-        response = await fetch('http://localhost:8000/verify/income', {
+        setStep('verify')
+        response = await fetch(`${BACKEND_URL}/inquiry/create`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -251,297 +181,397 @@ setStep('init')
       }
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.detail?.message || errData.detail || errData.error || `Server returned ${response.status}`)
+        const err = await response.json()
+        throw new Error(err.detail || 'Inquiry creation failed')
       }
 
-      const finalData = await response.json()
-      addLog(`[SERVER] Verified: ${finalData.result}`)
+      const inquiryData = await response.json()
+      setAttestationCode(inquiryData.inquiry_id)
+      setStep('complete')
+      addLog(`[SUCCESS] Inquiry Issued: ${inquiryData.inquiry_id}`)
+    } catch (err: any) {
+      setError(err.message)
+      addLog(`[ERROR] ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const checkInquiryStatus = async (id: string) => {
+    try {
+      const resp = await fetch(`${BACKEND_URL}/inquiry/status/${id}`)
+      const data = await resp.json()
+      if (data.status === 'fulfilled') {
+         setVerificationResult(data)
+         addLog(`[VERIFIER] Request fulfilled! Result: ${data.result}`)
+      }
+    } catch (e) {}
+  }
+
+  // --- CITIZEN LOGIC ---
+
+  const runFetchInquiry = async (code: string) => {
+    setLoading(true)
+    setError('')
+    try {
+      const resp = await fetch(`${BACKEND_URL}/inquiry/status/${code}`)
+      if (!resp.ok) throw new Error('Invalid inquiry code')
+      const data = await resp.json()
+      setActiveInquiry(data)
+      setThreshold(data.threshold)
+      setVerificationMode(data.mode)
+      addLog(`[SUCCESS] Inquiry Loaded: ${data.mode} check for $${data.threshold}`)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const runFulfillInquiry = async () => {
+    if (!activeAddress || !kycData || !activeInquiry) return
+
+    setLoading(true)
+    setError('')
+    try {
+      setStep('request')
+      addLog('[CITIZEN] Generating ZK-Proof for inquiry...')
+      
+      const genResp = await fetch(`${BACKEND_URL}/attestation/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: activeAddress.slice(0, 8),
+          mode: activeInquiry.mode,
+          threshold: activeInquiry.threshold,
+          secret_value: kycData.verified_data?.income_annual || 0
+        })
+      })
+
+      if (!genResp.ok) throw new Error('Proof generation failed')
+      const proofData = await genResp.json()
+
+      const fulfillResp = await fetch(`${BACKEND_URL}/inquiry/fulfill/${activeInquiry.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proof: proofData.proof,
+          public_inputs: proofData.public_inputs,
+          user_id: activeAddress.slice(0, 8),
+          threshold: activeInquiry.threshold,
+          mode: activeInquiry.mode
+        })
+      })
+
+      if (!fulfillResp.ok) throw new Error('Fulfillment failed')
       
       setStep('complete')
-      addLog('[SUCCESS] Verification complete!')
-
-      setVerificationResult(finalData)
-      setZkProof(finalData.proof?.proof || null)
-      
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Verification failed'
-      setError(msg)
-      addLog(`[ERROR] ${msg}`)
+      addLog('[SUCCESS] Inquiry fulfilled!')
+      setActiveInquiry((prev: any) => ({ ...prev, status: 'fulfilled', result: true }))
+    } catch (err: any) {
+      setError(err.message)
+      addLog(`[ERROR] ${err.message}`)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-black text-slate-100 selection:bg-purple-500/30 font-sans">
-      {/* Background Glows */}
+    <div className="min-h-screen bg-black text-slate-100 font-sans selection:bg-purple-500/30">
+      {/* Background Decor */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] glow-purple rounded-full blur-[120px] opacity-40"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] glow-purple rounded-full blur-[120px] opacity-30"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-900/10 rounded-full blur-[120px]" />
       </div>
 
-      <nav className="sticky top-0 z-50 p-6 backdrop-blur-md border-b border-white/5 flex justify-between items-center px-12">
+      <nav className="sticky top-0 z-50 p-6 backdrop-blur-md border-b border-white/5 flex justify-between items-center px-12 bg-black/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-purple-800 rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center justify-center">
             <span className="text-white font-black text-xl">T</span>
           </div>
-          <div className="text-2xl font-black tracking-tighter">TRUST<span className="text-purple-400">ANCHOR</span></div>
+          <div className="text-2xl font-black tracking-tighter uppercase italic">Trust<span className="text-purple-400">Anchor</span></div>
         </div>
         
-        <div className="flex items-center gap-6">
-          {activeAddress && (
-             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-xs text-purple-300">
-               <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse" />
-               Connected
-             </div>
-          )}
+        <div className="flex bg-white/5 border border-white/10 p-1 rounded-2xl">
           <button 
-            onClick={() => setOpenWalletModal(true)} 
-            className="px-6 py-2.5 bg-white text-black font-bold rounded-2xl hover:scale-[1.05] transition-all shadow-lg active:scale-95 text-xs uppercase tracking-widest"
+            onClick={() => setPortalMode('citizen')}
+            className={`px-8 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${portalMode === 'citizen' ? 'bg-white text-black shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
           >
-            {activeAddress ? `${activeAddress.slice(0, 4)}...${activeAddress.slice(-4)}` : 'Connect Gateway'}
+            Citizen Mode
+          </button>
+          <button 
+            onClick={() => setPortalMode('verifier')}
+            className={`px-8 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${portalMode === 'verifier' ? 'bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            Enterprise Gate
           </button>
         </div>
+
+        <button 
+          onClick={() => setOpenWalletModal(true)} 
+          className="px-6 py-2.5 bg-white text-black font-black rounded-2xl hover:scale-105 transition-all shadow-lg text-[10px] uppercase tracking-widest"
+        >
+          {activeAddress ? `${activeAddress.slice(0, 4)}...${activeAddress.slice(-4)}` : 'Connect Wallet'}
+        </button>
       </nav>
 
       <main className="relative z-10 max-w-7xl mx-auto p-8 pt-16">
         {/* Hero Section */}
         <div className="text-center mb-16 space-y-4">
           <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[10px] uppercase tracking-[0.2em] font-black text-purple-300 mb-2">
-            Protocol v2.0 • Zero Knowledge
+            Protocol v2.5 • Zero Knowledge 
           </div>
-          <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-gradient leading-none">
+          <h1 className="text-6xl md:text-8xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-white/40 leading-none">
             Truth-as-a-Service
           </h1>
-          <p className="text-slate-400 max-w-2xl mx-auto text-lg leading-relaxed">
-            The private integration layer for real-world identity. Anchor Aadhaar documents securely using Algorand and generate anonymous proofs of data.
+          <p className="text-slate-400 max-w-2xl mx-auto text-lg leading-relaxed italic">
+            Private identity verification where verifiers take the lead. Secure, anonymous, and on-chain.
           </p>
         </div>
 
-        {/* Dynamic content grid */}
-        {!kycData ? (
-          <div className="max-w-4xl mx-auto glow-container">
-            <div className="fintech-card text-center p-12 space-y-8 bg-gradient-to-b from-white/[0.03] to-transparent">
-              <div className="w-24 h-24 bg-purple-500/10 border border-purple-500/20 rounded-3xl mx-auto flex items-center justify-center mb-4">
-                <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-              </div>
-              <div>
-                <h2 className="text-3xl font-black mb-3">Identity Retrieval</h2>
-                <p className="text-slate-400">Upload your government-issued PDF or bank statement to securely anchor your truth on-chain.</p>
-              </div>
-              
-              <div className="relative group max-w-sm mx-auto">
-                <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-white/20 rounded-2xl blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-                <div className="relative bg-white text-black p-5 rounded-2xl font-black uppercase text-xs tracking-widest cursor-pointer hover:bg-slate-100 active:scale-95 transition-all text-center">
-                  <input 
-                    type="file" 
-                    accept=".pdf" 
-                    onChange={uploadDocument}
-                    disabled={loading || !activeAddress}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                  />
-                  {loading ? 'Analyzing Cryptography...' : 'Select Source Document'}
+        {portalMode === 'verifier' ? (
+          /* ENTERPRISE/VERIFIER VIEW */
+          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in zoom-in duration-500">
+             <div className="fintech-card p-12 text-center space-y-8 bg-gradient-to-tr from-purple-900/10 to-transparent">
+                <div className="w-20 h-20 bg-purple-500/20 border border-purple-500/40 rounded-full mx-auto flex items-center justify-center">
+                  <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                 </div>
-              </div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest pt-4">End-to-End Encrypted • No Data Ever Leaves Your Browser</p>
-            </div>
+                <div>
+                  <h2 className="text-4xl font-black mb-4 uppercase tracking-tighter">Inquiry Generator</h2>
+                  <p className="text-slate-400 max-w-xl mx-auto">Set verification requirements and issue a secure inquiry code. The fee is paid up-front by you.</p>
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                    <div className="space-y-2 text-left">
+                        <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Income Bound ($)</label>
+                        <input 
+                            type="number" 
+                            value={threshold} 
+                            onChange={(e) => setThreshold(Number(e.target.value))} 
+                            className="w-full bg-black/50 border border-white/10 p-4 rounded-xl font-black text-white focus:outline-none focus:border-purple-500 font-mono"
+                        />
+                    </div>
+                    <div className="space-y-2 text-left">
+                        <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Proof Protocol</label>
+                        <select 
+                            value={verificationMode}
+                            onChange={(e: any) => setVerificationMode(e.target.value)}
+                            className="w-full bg-black/50 border border-white/10 p-4 rounded-xl font-black text-white focus:outline-none uppercase text-xs"
+                        >
+                            <option value="boolean">Identity Seal (Boolean)</option>
+                            <option value="zkp">ZK Attestation (ZKP)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="max-w-2xl mx-auto space-y-4">
+                    <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest block text-left">Requested Attributes</label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {[
+                          { id: 'full_name', label: 'Full Name' },
+                          { id: 'age', label: 'Verified Age' },
+                          { id: 'income_annual', label: 'Annual Income' },
+                          { id: 'citizenship', label: 'Citizenship' },
+                          { id: 'address', label: 'Residency' }
+                        ].map(trait => (
+                          <button 
+                            key={trait.id}
+                            onClick={() => {
+                              setReqTraits(prev => 
+                                prev.includes(trait.id) ? prev.filter(t => t !== trait.id) : [...prev, trait.id]
+                              )
+                            }}
+                            className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-tighter transition-all ${reqTraits.includes(trait.id) ? 'bg-purple-500/20 border-purple-500 text-white' : 'bg-white/5 border-white/5 text-slate-500 hover:border-white/20'}`}
+                          >
+                            {trait.label}
+                          </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="max-w-2xl mx-auto pt-4">
+                  <button 
+                    onClick={runCreateInquiryFlow}
+                    disabled={loading || !activeAddress}
+                    className="w-full py-6 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-[0.3em] shadow-[0_0_30px_rgba(147,51,234,0.3)] transition-all active:scale-95 disabled:opacity-30"
+                  >
+                    {loading ? 'Issuing Protocol Inquiry...' : 'Issue Paid Inquiry Request'}
+                  </button>
+                </div>
+
+                {attestationCode && (
+                   <div className="mt-8 p-8 bg-green-500/10 border border-green-500/30 rounded-3xl animate-in zoom-in duration-500 max-w-2xl mx-auto border-dashed">
+                      <div className="text-[10px] font-black text-green-400 uppercase tracking-[0.4em] mb-4">Request Issued Successfully</div>
+                      <div className="text-6xl font-black text-white tracking-widest mb-6 font-mono select-all">
+                        {attestationCode}
+                      </div>
+                      <div className="flex gap-4 justify-center">
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(attestationCode);
+                            addLog('[UI] Code copied!');
+                          }}
+                          className="px-8 py-3 bg-green-500 text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-105 active:scale-95 transition-all"
+                        >
+                          Copy Code
+                        </button>
+                        <button 
+                          onClick={() => attestationCode && checkInquiryStatus(attestationCode)}
+                          className="px-8 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-105 active:scale-95 transition-all"
+                        >
+                          Check Status
+                        </button>
+                      </div>
+                   </div>
+                )}
+
+                {verificationResult && (
+                    <div className="mt-8 p-12 fintech-card border-green-500 bg-green-500/5 animate-pulse max-w-2xl mx-auto flex items-center justify-center gap-6">
+                        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center border border-green-500/40">
+                            <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <div className="text-left">
+                            <h3 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">Verified</h3>
+                            <p className="text-green-400 font-bold uppercase tracking-widest text-[10px]">Proof satisfies all protocol constraints</p>
+                        </div>
+                    </div>
+                )}
+             </div>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-12 gap-8 items-start">
-            
-            {/* Left Column: Data Preview & Disclosure */}
-            <div className="lg:col-span-12 space-y-8">
-               <div className="fintech-card">
-                  <div className="flex justify-between items-start mb-10">
-                    <div>
-                      <h2 className="text-2xl font-black uppercase tracking-tight mb-1 text-white">Secure Identity Anchor</h2>
-                      <div className="flex gap-2 items-center text-[10px] text-slate-500 font-mono">
-                        <span className="bg-green-500/20 text-green-400 px-2 rounded tracking-widest">STATE: ANCHORED</span>
-                        <span>TX: {kycData.anchor_txid?.slice(0, 16)}...</span>
+          /* CITIZEN/PROVER VIEW */
+          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in zoom-in duration-500">
+            {!kycData ? (
+                 <div className="fintech-card text-center p-12 space-y-8 bg-gradient-to-b from-white/[0.03] to-transparent">
+                     <div className="w-24 h-24 bg-purple-500/10 border border-purple-500/20 rounded-3xl mx-auto flex items-center justify-center mb-4">
+                        <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                       </div>
-                    </div>
-                    <div className="bg-purple-500/10 border border-purple-500/20 px-4 py-2 rounded-2xl text-xs text-purple-300 font-black">
-                      KYC ID: {kycData.kyc_id}
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-12">
-                     <div className="space-y-6">
-                        <div className="text-white font-black text-sm uppercase tracking-widest mb-6 border-b border-white/5 pb-2 inline-block">Selective Disclosure Console</div>
-                        
-                        <div className="grid gap-3">
-                            <label className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseName ? 'bg-purple-500/10 border-purple-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
-                                <input type="checkbox" checked={discloseName} onChange={(e) => setDiscloseName(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded-lg" />
-                                <div className="flex-1">
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Full Name</div>
-                                    <div className="font-bold text-white">{kycData.verified_data?.full_name}</div>
-                                </div>
-                            </label>
-
-                            <label className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseCitizenship ? 'bg-purple-500/10 border-purple-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
-                                <input type="checkbox" checked={discloseCitizenship} onChange={(e) => setDiscloseCitizenship(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded-lg" />
-                                <div className="flex-1">
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Citizenship</div>
-                                    <div className="font-bold text-white">{kycData.verified_data?.citizenship}</div>
-                                </div>
-                            </label>
-
-                            <label className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseAge ? 'bg-purple-500/10 border-purple-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
-                                <input type="checkbox" checked={discloseAge} onChange={(e) => setDiscloseAge(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded-lg" />
-                                <div className="flex-1">
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Verified Age</div>
-                                    <div className="font-bold text-white">{kycData.verified_data?.age} Years</div>
-                                </div>
-                            </label>
-
-                            <label className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseAddress ? 'bg-purple-500/10 border-purple-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
-                                <input type="checkbox" checked={discloseAddress} onChange={(e) => setDiscloseAddress(e.target.checked)} className="w-5 h-5 accent-purple-500 rounded-lg mt-1" />
-                                <div className="flex-1">
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Residential Address</div>
-                                    <div className="font-bold text-white text-xs leading-relaxed">{kycData.verified_data?.address}</div>
-                                </div>
-                            </label>
-
-                            {kycData.verified_data?.income_annual !== undefined && (
-                                <label className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${discloseIncome ? 'bg-green-500/10 border-green-500/50' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}>
-                                    <input type="checkbox" checked={discloseIncome} onChange={(e) => setDiscloseIncome(e.target.checked)} className="w-5 h-5 accent-green-500 rounded-lg" />
-                                    <div className="flex-1">
-                                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Annual Income (Financial)</div>
-                                        <div className="font-bold text-white">${kycData.verified_data.income_annual.toLocaleString()}</div>
-                                    </div>
-                                </label>
-                            )}
-                        </div>
-                     </div>
-
-                     <div className="space-y-8">
-                        <div className="text-white font-black text-sm uppercase tracking-widest mb-2 border-b border-white/5 pb-2 inline-block">Attestation Factory</div>
-                        
-                        <div className="space-y-4 bg-white/[0.02] p-8 rounded-3xl border border-white/5">
-                            {/* Metadata input (Alias helper) */}
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-[10px] uppercase font-bold text-slate-500">Verification Alias (Your Session Name)</label>
-                                    <button 
-                                        onClick={() => setUserId(`Verify_${Math.floor(1000 + Math.random() * 9000)}`)}
-                                        className="text-[9px] bg-white/5 hover:bg-white/10 text-purple-400 px-2 py-0.5 rounded border border-white/5 transition-colors uppercase font-bold"
-                                    >
-                                        Auto-Generate
-                                    </button>
-                                </div>
-                                <input 
-                                    type="text" 
-                                    placeholder="e.g. Identity_Check_402"
-                                    value={userId} 
-                                    onChange={(e) => setUserId(e.target.value)} 
-                                    className="w-full bg-black/50 border border-white/10 p-4 rounded-xl font-bold text-white focus:outline-none focus:border-purple-500/50 transition-all font-mono text-sm"
-                                />
-                            </div>
-
-                            {/* Conditional Threshold - Only if document has income data AND user chooses to disclose it in ZKP mode */}
-                            {verificationMode === 'zkp' && discloseIncome && kycData.verified_data?.income_annual !== undefined && (
-                                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <label className="text-[10px] uppercase font-bold text-slate-500 text-green-400">Financial Bound Threshold ($)</label>
-                                    <input 
-                                        type="number" 
-                                        value={threshold} 
-                                        onChange={(e) => setThreshold(Number(e.target.value))} 
-                                        className="w-full bg-black/50 border border-green-500/30 p-4 rounded-xl font-bold text-white focus:outline-none focus:border-green-500/50 transition-all"
-                                    />
-                                </div>
-                            )}
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[10px] uppercase font-bold text-slate-500 mb-1">Proof Configuration</label>
-                                <div className="flex gap-2 p-1 bg-black/50 rounded-xl border border-white/5">
-                                    <button onClick={() => setVerificationMode('boolean')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${verificationMode === 'boolean' ? 'bg-white/10 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}>Identity Seal</button>
-                                    <button onClick={() => setVerificationMode('zkp')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${verificationMode === 'zkp' ? 'bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'text-slate-500 hover:text-slate-300'}`}>ZK Attestation</button>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={runVerificationFlow}
+                      <div>
+                        <h2 className="text-3xl font-black mb-3">Identity Anchor</h2>
+                        <p className="text-slate-400">Upload your government-issued document to securely participate.</p>
+                      </div>
+                      <div className="relative group max-w-sm mx-auto">
+                        <div className="relative bg-white text-black p-5 rounded-2xl font-black uppercase text-xs tracking-widest cursor-pointer hover:bg-slate-100 active:scale-95 transition-all text-center">
+                            <input 
+                                type="file" 
+                                accept=".pdf" 
+                                onChange={uploadDocument}
                                 disabled={loading || !activeAddress}
-                                className="w-full py-6 bg-white text-black font-black uppercase tracking-[0.2em] text-sm rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 mt-4"
-                            >
-                                {loading ? 'Sealing Attributes...' : `Generate ${(verificationMode === 'zkp' && discloseIncome) ? 'Zero-Knowledge' : 'Identity'} Proof`}
-                            </button>
-                            {error && <div className="text-red-400 text-center text-xs font-bold mt-2">Error: {error}</div>}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                            />
+                            {loading ? 'Analyzing...' : 'Select Document'}
                         </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-            {/* Execution Logs Area */}
-            <div className="lg:col-span-12 grid lg:grid-cols-2 gap-8">
-                <div className="fintech-card h-80 flex flex-col">
-                    <div className="text-xs uppercase font-black text-slate-500 tracking-widest mb-4 flex justify-between items-center">
-                        <span>Computation Lifecycle</span>
-                        <div className="flex gap-1">
-                            {['request', 'payment', 'prove', 'verify'].map(s => (
-                                <div key={s} className={`w-2 h-2 rounded-full ${step === s ? 'bg-purple-500 animate-pulse' : (['complete'].includes(step) ? 'bg-green-500/40' : 'bg-white/10')}`}></div>
-                            ))}
-                        </div>
+                      </div>
+                 </div>
+            ) : (
+              <div className="space-y-8">
+                 <div className="fintech-card p-12 text-center bg-gradient-to-b from-purple-500/5 to-transparent border-purple-500/20">
+                    <h2 className="text-3xl font-black mb-4 uppercase tracking-tighter">Inquiry Fulfillment</h2>
+                    <p className="text-slate-400 mb-8 max-w-md mx-auto">Enter the secure inquiry code provided by an enterprise to unlock their request.</p>
+                    
+                    <div className="max-w-md mx-auto space-y-4">
+                        <input 
+                            type="text" 
+                            placeholder="TRU-XXXXXX"
+                            value={inquiryCode}
+                            onChange={(e) => setInquiryCode(e.target.value.toUpperCase())}
+                            className="w-full bg-black/50 border border-white/10 p-6 rounded-2xl text-center text-5xl font-black text-purple-300 tracking-[0.2em] focus:outline-none focus:border-purple-500 transition-all font-mono"
+                        />
+                        <button 
+                            onClick={() => runFetchInquiry(inquiryCode)}
+                            disabled={loading || !inquiryCode}
+                            className="w-full py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-slate-100 transition-all active:scale-95 disabled:opacity-30"
+                        >
+                            {loading ? 'Searching Ledger...' : 'Unlock Request'}
+                        </button>
                     </div>
-                    <div className="flex-1 overflow-y-auto space-y-2 font-mono text-[11px] bg-black/40 p-4 rounded-2xl border border-white/5">
-                        {logs.map((l, i) => (
-                            <div key={i} className={`flex gap-3 ${l.includes('[ERROR]') ? 'text-red-400' : l.includes('[SUCCESS]') || l.includes('[REDACTED]') ? 'text-purple-300' : 'text-slate-400'}`}>
-                                <span className="text-[9px] opacity-30">[{i}]</span>
-                                <span>{l}</span>
-                            </div>
-                        ))}
-                        {logs.length === 0 && <div className="text-slate-700 italic">Ready for verification lifecycle...</div>}
-                    </div>
-                </div>
 
-                <div className="fintech-card h-80 relative overflow-hidden flex flex-col justify-center items-center text-center">
-                    {!verificationResult ? (
-                        <div className="space-y-4 opacity-30">
-                            <div className="w-16 h-16 border-2 border-dashed border-white/20 rounded-full mx-auto flex items-center justify-center">
-                                <span className="text-2xl">?</span>
-                            </div>
-                            <div className="text-xs font-black uppercase tracking-widest">Pending Verification</div>
-                        </div>
-                    ) : (
-                        <div className="space-y-6 animate-in fade-in zoom-in duration-500">
-                             <div className="w-20 h-20 bg-green-500/20 border border-green-500/50 rounded-full mx-auto flex items-center justify-center mb-4">
-                                <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                            </div>
-                            <div>
-                                <h3 className="text-3xl font-black text-white mb-1 uppercase tracking-tighter">Verified</h3>
-                                <p className="text-slate-400 text-xs uppercase tracking-widest font-bold">ZKP-SNARK ATTRIBUTE ATTESTATION</p>
-                            </div>
-                            <div className="bg-white/[0.03] border border-white/10 p-4 rounded-2xl flex gap-12 justify-center">
-                                <div className="text-center">
-                                    <div className="text-[10px] text-slate-500 uppercase font-black mb-1">Pass Ratio</div>
-                                    <div className="text-xl font-bold text-white">100%</div>
+                    {activeInquiry && (
+                        <div className="mt-12 p-8 border border-purple-500/30 rounded-3xl bg-purple-500/5 text-left animate-in slide-in-from-top-4 duration-500 max-w-2xl mx-auto">
+                            <div className="flex justify-between items-start mb-8">
+                                <div>
+                                    <h3 className="text-xl font-black uppercase text-white tracking-tight">Enterprise Request</h3>
+                                    <p className="text-[10px] text-slate-500 font-mono tracking-widest">{activeInquiry.id}</p>
                                 </div>
-                                <div className="text-center">
-                                    <div className="text-[10px] text-slate-500 uppercase font-black mb-1">Mode</div>
-                                    <div className="text-xl font-bold text-white uppercase">{verificationResult.mode}</div>
-                                </div>
-                                {verificationResult.mode === 'zkp' && (
-                                    <div className="text-center">
-                                        <div className="text-[10px] text-slate-500 uppercase font-black mb-1">Threshold</div>
-                                        <div className="text-xl font-bold text-white">${verificationResult.threshold.toLocaleString()}</div>
+                                <div className="px-3 py-1 bg-green-500/20 text-green-400 text-[10px] font-black rounded-full border border-green-500/30 uppercase tracking-tighter">Active Inquiry</div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="p-4 bg-black/40 rounded-2xl border border-white/5 col-span-2">
+                                    <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest block mb-1">Requested Data Points</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {activeInquiry.requested_traits?.map((t: string) => (
+                                            <span key={t} className="px-2 py-1 bg-white/5 rounded text-[9px] font-bold text-purple-300 uppercase">{t.replace('_', ' ')}</span>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
                             </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                                    <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest block mb-1">Verification Mode</span>
+                                    <span className="text-xs font-bold text-white uppercase italic">{activeInquiry.mode === 'zkp' ? 'ZK Income Proof' : 'Identity Seal'}</span>
+                                </div>
+                                <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                                    <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest block mb-1">Constraint</span>
+                                    <span className="text-xs font-bold text-white">&gt; ${activeInquiry.threshold.toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            <p className="text-[11px] text-slate-400 mb-8 leading-relaxed">
+                                <strong className="text-purple-400">Privacy Assurance:</strong> No raw values will be shared. Only a cryptographic proof of fact will be transmitted.
+                            </p>
+
+                            {activeInquiry.status === 'pending' ? (
+                                <button 
+                                    onClick={runFulfillInquiry}
+                                    disabled={loading}
+                                    className="w-full py-6 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase tracking-[0.3em] rounded-2xl shadow-[0_0_30px_rgba(147,51,234,0.3)] transition-all active:scale-95"
+                                >
+                                    {loading ? 'Computing Cryptographic Proof...' : 'Authorize & Fulfill Request'}
+                                </button>
+                            ) : (
+                                <div className="py-6 bg-green-500/20 border border-green-500/40 text-green-400 font-black uppercase text-center rounded-2xl flex items-center justify-center gap-3">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                    Request Fulfilled Successfully
+                                </div>
+                            )}
                         </div>
                     )}
-                </div>
-            </div>
+                 </div>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Protocol Logs */}
+        <div className="max-w-4xl mx-auto mt-16 pb-24">
+            <div className="fintech-card h-80 flex flex-col bg-black/40 backdrop-blur-xl border-white/5">
+                <div className="text-[10px] uppercase font-black text-slate-500 tracking-[0.3em] mb-4 flex justify-between items-center border-b border-white/5 pb-2">
+                    <span>Truth Engine Runtime Logs</span>
+                    <span className="text-purple-400/50">v2.5.0-beta</span>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-1 font-mono text-[9px] scrollbar-hide">
+                    {logs.map((log, i) => (
+                    <div key={i} className={`py-1 border-b border-white/5 last:border-0 ${log.includes('[ERROR]') ? 'text-red-400' : log.includes('[SUCCESS]') ? 'text-green-400' : log.includes('[TX]') ? 'text-blue-400' : 'text-slate-500'}`}>
+                        <span className="opacity-20 mr-2">[{new Date().toLocaleTimeString()}]</span> {log}
+                    </div>
+                    ))}
+                    {logs.length === 0 && <div className="text-slate-800 italic uppercase font-black tracking-widest text-center mt-20 opacity-30 animate-pulse">Awaiting Payload...</div>}
+                </div>
+            </div>
+        </div>
       </main>
 
-      <div className="p-12 text-center text-[10px] uppercase font-black tracking-[0.4em] text-slate-700">
-        Powered by Algorand • Truth Registry Protocol • x402 Payments
-      </div>
-
-      <ConnectWallet openModal={openWalletModal} closeModal={() => setOpenWalletModal(false)} />
+      <ConnectWallet open={openWalletModal} setOpen={setOpenWalletModal} />
+      
+      {/* Floating Error Toast */}
+      {error && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-red-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-2xl animate-in slide-in-from-bottom-4 duration-300 z-[100]">
+            Error: {error}
+            <button onClick={() => setError('')} className="ml-4 opacity-50 hover:opacity-100">×</button>
+        </div>
+      )}
     </div>
   )
 }
