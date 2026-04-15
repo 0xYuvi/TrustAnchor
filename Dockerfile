@@ -36,5 +36,5 @@ ENV PORT=10000
 # Expose Render's default port or use the override
 EXPOSE 10000
 
-# Start the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
+# Start the application using the PORT env var provided by Render
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}"]
