@@ -157,10 +157,11 @@ class KYCAgent:
                 txid = self.algod.send_transaction(signed_txn)
                 logger.info(f"[KYC] Submitted anchor transaction: {txid}")
 
-                # Wait for confirmation
+                # Wait for confirmation with Algonode
                 try:
                     from algosdk.transaction import wait_for_confirmation
-                    result = wait_for_confirmation(self.algod, txid, 4)
+                    result = wait_for_confirmation(self.algod, txid, 10)
+                    logger.info(f"[KYC] Anchor confirmed! View: https://testnet.algoexplorer.io/tx/{txid}")
                 except ImportError:
                     # Fallback for different SDK versions
                     result = self.algod.pending_transaction_info(txid)

@@ -112,113 +112,75 @@ class PaymentVerifier:
         note: Optional[str] = None,
         sender: Optional[str] = None,
     ) -> PaymentVerificationResult:
-        """
-        Verify a payment transaction.
-
-        Args:
-            txid: Transaction ID to verify
-            expected_amount: Expected payment amount in microAlgos
-            note: Optional expected note (for binding)
-            sender: Optional expected sender address
-
-        Returns:
-            PaymentVerificationResult with verification status
-        """
         if self._replay_store.is_used(txid):
             return PaymentVerificationResult(
                 valid=False,
                 error=f"Transaction {txid} has already been used (replay attack prevention)",
             )
 
-        try:
-            response = await self.client.get(
-                f"{self.indexer_url}/v2/transactions/{txid}",
-                headers={"Accept": "application/json"},
-            )
-
-            if response.status_code == 404:
-                return PaymentVerificationResult(
-                    valid=False,
-                    error=f"Transaction {txid} not found",
+        retries = 10
+        for attempt in range(retries):
+            try:
+                response = await self.client.get(
+                    f"{self.indexer_url}/v2/transactions/{txid}",
+                    headers={"Accept": "application/json"},
                 )
 
-            if response.status_code != 200:
-                return PaymentVerificationResult(
-                    valid=False,
-                    error=f"Indexer returned status {response.status_code}",
+                if response.status_code == 404:
+                    if attempt < retries - 1:
+                        logger.info(f"[PAYMENT] Tx {txid} not found yet. Retrying {attempt+1}/{retries}...")
+                        await asyncio.sleep(2)
+                        continue
+                    return PaymentVerificationResult(valid=False, error="Transaction not found after retries")
+
+                if response.status_code != 200:
+                    return PaymentVerificationResult(valid=False, error=f"Indexer error: {response.status_code}")
+
+                data = response.json()
+                txn = data.get("transaction", {})
+                payment_txn = txn.get("payment-transaction", {})
+
+                receiver = payment_txn.get("receiver")
+                amount = int(payment_txn.get("amount", 0))
+                actual_sender = txn.get("sender")
+                txn_note = txn.get("note", "")
+
+                if receiver != self.receiver_address:
+                    return PaymentVerificationResult(valid=False, error="Wrong receiver")
+
+                if amount < expected_amount:
+                    return PaymentVerificationResult(valid=False, error=f"Insufficient payment: {amount}")
+
+                if sender and actual_sender != sender:
+                    return PaymentVerificationResult(valid=False, error="Wrong sender")
+
+                if note:
+                    try:
+                        note_bytes = bytes.fromhex(txn_note)
+                        if note_bytes.decode("utf-8") != note:
+                            return PaymentVerificationResult(valid=False, error="Note mismatch")
+                    except Exception:
+                        return PaymentVerificationResult(valid=False, error="Invalid note")
+
+                payment = PaymentDetails(
+                    txid=txid,
+                    sender=actual_sender,
+                    amount=amount,
+                    receiver=receiver,
+                    note=txn_note,
+                    round=data.get("confirmed-round", 0),
+                    timestamp=datetime.fromtimestamp(data.get("round-time", 0)) if data.get("round-time") else datetime.now(),
                 )
 
-            data = response.json()
-            txn = data.get("transaction", {})
+                self._replay_store.mark_used(txid)
+                return PaymentVerificationResult(valid=True, payment=payment)
 
-            payment_txn = txn.get("payment-transaction", {})
-
-            receiver = payment_txn.get("receiver")
-            amount = int(payment_txn.get("amount", 0))
-            actual_sender = txn.get("sender")
-            txn_note = txn.get("note", "")
-
-            if receiver != self.receiver_address:
-                return PaymentVerificationResult(
-                    valid=False,
-                    error=f"Payment sent to wrong address: {receiver}",
-                )
-
-            if amount < expected_amount:
-                return PaymentVerificationResult(
-                    valid=False,
-                    error=f"Insufficient payment: {amount} < {expected_amount}",
-                )
-
-            if sender and actual_sender != sender:
-                return PaymentVerificationResult(
-                    valid=False,
-                    error=f"Payment from wrong sender: {actual_sender}",
-                )
-
-            if note:
-                try:
-                    note_bytes = bytes.fromhex(txn_note)
-                    if note_bytes.decode("utf-8") != note:
-                        return PaymentVerificationResult(
-                            valid=False,
-                            error="Payment note does not match expected value",
-                        )
-                except (ValueError, UnicodeDecodeError):
-                    return PaymentVerificationResult(
-                        valid=False,
-                        error="Invalid payment note format",
-                    )
-
-            round_time = data.get("round-time", 0)
-            payment = PaymentDetails(
-                txid=txid,
-                sender=actual_sender,
-                amount=amount,
-                receiver=receiver,
-                note=txn_note,
-                round=data.get("confirmed-round", 0),
-                timestamp=datetime.fromtimestamp(round_time)
-                if round_time
-                else datetime.now(),
-            )
-
-            self._replay_store.mark_used(txid)
-
-            return PaymentVerificationResult(valid=True, payment=payment)
-
-        except httpx.RequestError as e:
-            logger.error(f"Indexer request failed: {e}")
-            return PaymentVerificationResult(
-                valid=False,
-                error=f"Failed to verify payment: {str(e)}",
-            )
-        except Exception as e:
-            logger.error(f"Payment verification error: {e}")
-            return PaymentVerificationResult(
-                valid=False,
-                error=f"Verification error: {str(e)}",
-            )
+            except Exception as e:
+                logger.error(f"Verification error: {e}")
+                if attempt < retries - 1:
+                    await asyncio.sleep(2)
+                    continue
+                return PaymentVerificationResult(valid=False, error=str(e))
 
     async def verify_and_bind(
         self,

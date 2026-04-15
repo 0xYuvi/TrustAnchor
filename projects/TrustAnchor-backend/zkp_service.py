@@ -240,10 +240,12 @@ class ZKPService:
         Returns:
             ZKProofResult with verification status
         """
-        if public_inputs.get("threshold") != threshold:
+        # Ensure both are integers for comparison (the prover may return string)
+        provided_threshold = int(float(public_inputs.get("threshold", 0)))
+        if provided_threshold != int(threshold):
             return ZKProofResult(
                 valid=False,
-                error=f"Threshold mismatch: {public_inputs.get('threshold')} != {threshold}",
+                error=f"Threshold mismatch: {provided_threshold} != {threshold}",
             )
 
         if self.http_prover_url:
@@ -338,14 +340,19 @@ class ZKPService:
 
             # Parse the JSON output from stdout
             output = stdout.decode().strip()
+            logger.info(f"[ZKP] Binary output: {output}")
+            
             # Handle potential gnark logs before JSON
             json_str = output
             if "{" in output:
                 json_str = "{" + output.split("{", 1)[1]
             
             data = json.loads(json_str)
+            is_valid = data.get("valid", False)
+            logger.info(f"[ZKP] Parsed validity: {is_valid}")
+            
             return ZKProofResult(
-                valid=data.get("valid", False),
+                valid=is_valid,
                 proof=ZKProof(proof=proof, public_inputs=public_inputs),
             )
 

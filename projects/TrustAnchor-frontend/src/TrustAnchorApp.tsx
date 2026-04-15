@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react'
 import algosdk from 'algosdk'
 import ConnectWallet from './components/ConnectWallet'
 
-const BACKEND_URL = 'http://localhost:8000'
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
 interface ZKProofData {
   a: string
@@ -165,26 +165,39 @@ const TrustAnchorApp: React.FC = () => {
         
         const signedTxsRaw = await signTransactions([paymentTxn.toByte()])
         const signedTxs = signedTxsRaw.filter((tx): tx is Uint8Array => tx !== null)
-        const result = (await algodClient.sendRawTransaction(signedTxs).do()) as unknown as { txId: string }
-        const txId = result.txId
+        const result = (await algodClient.sendRawTransaction(signedTxs).do()) as any
+        const txId = result.txId || result.txID || result.txid
         
-        addLog(`[TX] Confirmed: ${txId}`)
-        await algosdk.waitForConfirmation(algodClient, txId, 4)
+        addLog(`[TX] Broadcast! View on Explorer: https://testnet.algoexplorer.io/tx/${txId}`)
+        await algosdk.waitForConfirmation(algodClient, txId, 10)
+        
+        // Indexer Grace Period: Wait for the indexer to see the block
+        addLog(`[SYNC] Waiting for Indexer synchronization...`)
+        await new Promise(resolve => setTimeout(resolve, 5000))
         
         setStep('verify')
         response = await fetch(`${BACKEND_URL}/inquiry/create`, {
           method: 'POST',
-          headers: {
+          headers: { 
             'Content-Type': 'application/json',
-            'X402-Payment-Proof': txId
+            'x402-payment-proof': txId 
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            ...payload,
+            payment_txid: txId
+          })
         })
       }
 
       if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.detail || 'Inquiry creation failed')
+        let errorMsg = 'Failed to process inquiry'
+        try {
+          const err = await response.json()
+          errorMsg = typeof err.detail === 'string' ? err.detail : (err.detail?.error || JSON.stringify(err.detail))
+        } catch (e) {
+          errorMsg = response.statusText
+        }
+        throw new Error(errorMsg)
       }
 
       const inquiryData = await response.json()
@@ -610,10 +623,15 @@ const TrustAnchorApp: React.FC = () => {
                                 >
                                     {loading ? 'Computing Cryptographic Proof...' : 'Authorize & Fulfill Request'}
                                 </button>
-                            ) : (
-                                <div className="py-6 bg-green-500/20 border border-green-500/40 text-green-400 font-black uppercase text-center rounded-2xl flex items-center justify-center gap-3">
+                            ) : activeInquiry.result ? (
+                                <div className="py-6 bg-green-500/20 border border-green-500/40 text-green-400 font-black uppercase text-center rounded-2xl flex items-center justify-center gap-3 animate-in fade-in zoom-in duration-500">
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                    Request Fulfilled Successfully
+                                    Verification Success: Proof Anchored
+                                </div>
+                            ) : (
+                                <div className="py-6 bg-red-500/20 border border-red-500/40 text-red-400 font-black uppercase text-center rounded-2xl flex items-center justify-center gap-3 animate-in fade-in zoom-in duration-500">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    Verification Denied: Threshold Not Met
                                 </div>
                             )}
                         </div>

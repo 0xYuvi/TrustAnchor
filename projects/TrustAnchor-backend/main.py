@@ -61,6 +61,7 @@ class IncomeVerificationRequest(BaseModel):
     threshold: Optional[float] = Field(0, description="Income threshold to verify against")
     secret_value: Optional[float] = Field(None, description="Secret income value (required for ZKP mode)")
     requested_traits: Optional[list[str]] = Field(None, description="List of traits to verify (e.g. ['full_name', 'age'])")
+    payment_txid: Optional[str] = Field(None, description="Transaction ID of the payment")
 
 
 class IncomeVerificationResponse(BaseModel):
@@ -519,9 +520,9 @@ async def create_inquiry(
     Create a verification inquiry.
     PAID by the Verifier.
     """
-    txid = http_request.headers.get("x402-payment-proof") or http_request.headers.get(
-        "X402-Payment-Proof"
-    )
+    # Check headers (FastAPI headers are lowercase) or body safely
+    txid = http_request.headers.get("x402-payment-proof") or getattr(request, 'payment_txid', None)
+    
     expected_amount = get_price(request.mode)
 
     if not txid:
@@ -603,12 +604,17 @@ async def fulfill_inquiry(inquiry_id: str, bundle: AttestationBundle):
         raise HTTPException(status_code=500, detail="ZKP Service not initialized")
 
     if inquiry.mode == "zkp":
+        logger.info(f"[ZKP] Verifying proof for inquiry {inquiry_id} with threshold {inquiry.threshold}")
         zkp_result = await zkp_service.verify_proof(
             proof=bundle.proof,
             public_inputs=bundle.public_inputs,
             threshold=int(inquiry.threshold),
         )
         is_valid = zkp_result.valid
+        if not is_valid:
+            logger.warning(f"[ZKP] Verification FAILED for {inquiry_id}. Error: {zkp_result.error}")
+        else:
+            logger.info(f"[ZKP] Verification PASSED for {inquiry_id}")
     else:
         is_valid = bundle.proof == "SIGNED_IDENTITY_SEAL_V1"
 
