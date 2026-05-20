@@ -73,11 +73,3 @@ graph TD
 
 ---
 
-## 🏆 Hackseries 3.0 Special Credits
-- **ZKP Engine**: Leverages high-performance Groth16 proofs for sub-100ms verification.
-- **Cinematic UX**: Designed to bring "Sci-Fi Realism" to blockchain identity.
-- **Monetized Truth**: A working implementation of x402 protocols for real-world dApp sustainability.
-
----
-
-*Built with ❤️ for the Algorand Community.*
