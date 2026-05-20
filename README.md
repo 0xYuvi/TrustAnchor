@@ -1,75 +1,75 @@
-# TrustAnchor — Truth-as-a-Service on Algorand
+# TrustAnchor 🛡️⚓️
+### *Privacy-Preserving Identity Sharding on Algorand*
 
-**Institutions pay USDC. Users prove with ZKPs. Privacy preserved.**
-
-TrustAnchor is a privacy-preserving identity verification protocol on Algorand. Institutions (employers, DeFi protocols, lenders) pay USDC to verify user attributes via zero-knowledge proofs — without ever seeing raw PII.
-
----
-
-## Business Model
-
-| Tier | Product | USDC | Who Pays |
-|------|---------|------|----------|
-| Boolean | "Is income > $50k?" yes/no | $0.01 | Institution |
-| ZKP | Full zero-knowledge proof | $0.10 | Institution |
-| Subscription | 1,000 verifications/month | $10/mo | Enterprise |
-| Onboarding | Register on platform | $2 one-time | Institution |
-
-### Why only USDC?
-Enterprise buyers need stable, predictable pricing. ALGO is volatile. USDC (ASA `31566704` mainnet / `10419441` testnet) gives institutions fixed costs they can budget.
+**TrustAnchor** is a next-generation identity protocol that bridges the gap between real-world credentials and decentralized privacy. Built for **Hackseries 3.0**, it leverages Zero-Knowledge Proofs (ZKP) and the x402 Micropayment standard to enable "Truth-as-a-Service" without ever exposing a user's sensitive data.
 
 ---
 
-## Flow
+## 🚀 The Vision
+In the modern web, "Identity" is a liability. To prove you earn $50k or are 21+ years old, you currently have to hand over raw documents (PDFs, IDs) to untrusted third parties. 
 
+**TrustAnchor solves this.** We "shard" your identity into cryptographic commitments on the Algorand blockchain. You provide the **Proof**, they get the **Truth**, but nobody sees the **Data**.
+
+---
+
+## ✨ Key Features
+- **Identity Anchoring**: Securely commit KYC data (Income, Age, Nationality) to the Algorand ledger.
+- **ZKP Verification**: Use Groth16 Zero-Knowledge proofs to verify attributes (e.g., "Income > $50,000") without revealing the exact value.
+- **x402 Monetization**: Integrated Alogrand micropayments for every verification check. Verifiers pay a small fee in ALGO to access a cryptographic truth.
+- **Cinematic Vault**: A premium, high-fidelity dashboard for citizens to manage their "Identity Assets."
+
+---
+
+## 🛠️ Technical Stack
+- **Smart Contracts**: Algorand Python (Puya) & PuyaTS.
+- **Cryptography**: `gnark` (Go-based ZKP engine utilizing Groth16).
+- **Backend**: FastAPI (Python), `algosdk`, `pypdfum2`.
+- **Frontend**: React (TypeScript), Tailwind CSS, Framer Motion.
+- **Protocol**: x402 (Standardized Algorand Payment Proofs).
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph TD
+    User((Citizen)) -->|Upload PDF| Backend[TrustAnchor Agent]
+    Backend -->|Extract Data| OCR[OCR Engine]
+    OCR -->|Commitment| Contract[Algorand Smart Contract]
+    Contract -->|Asset Hash| Ledger[(Algorand Ledger)]
+    
+    Enterprise((Verifier)) -->|Pay ALGO| x402[x402 Payment Proof]
+    x402 -->|Create Inquiry| Backend
+    Backend -->|Generate Challenge| ZKP[ZKP Circuit]
+    ZKP -->|Boolean Result| Enterprise
 ```
-1. Institution registers → pays $2 USDC onboarding → gets API key + 1,000 quota
-2. User anchors identity on-chain → PII never stored, only cryptographic commitment
-3. Institution requests verification of user → pays $0.01/$0.10 USDC
-4. User sees pending request → approves → ZKP generated from anchored data
-5. Institution reads verification result on TruthRegistry
-```
 
 ---
 
-## Key Features
+## 🛠️ Development & Setup
 
-- **Institution Pays**: Verifiers bear the cost, not consumers. Matches real-world KYC (Onfido, Jumio, Persona).
-- **Zero-Knowledge Proofs**: Groth16 proofs via gnark. Prove attributes without revealing values.
-- **x402 + USDC**: HTTP 402 payment flow with USDC asset transfers, not ALGO.
-- **Identity Anchoring**: KYC data committed to Algorand ledger. Raw data never stored.
-- **Verification Requests**: On-chain tracking via BoxMap — institutions request, users approve.
+### Prerequisites
+- [AlgoKit CLI](https://github.com/algorandfoundation/algokit-cli)
+- [Docker](https://www.docker.com/)
+- [Go](https://golang.org/) (for ZKP binary compilation)
 
----
-
-## Technical Stack
-
-- **Smart Contracts**: Algorand Python (PuyaPy)
-- **Cryptography**: gnark (Go-based ZKP engine, Groth16)
-- **Backend**: FastAPI (Python), algosdk, x402
-- **Frontend**: React (TypeScript), Tailwind CSS, @txnlab/use-wallet
-- **Payments**: USDC ASA transfers (not ALGO)
-
----
-
-## Quick Start
-
-```bash
-# 1. Install dependencies
-algokit project bootstrap all
-
-# 2. Compile ZKP prover
-cd circuits && go build -o prover ./cmd/prover && ./prover setup --dir ./keys && cd ..
-
-# 3. Start backend
-cd projects/TrustAnchor-backend
-cp .env.example .env  # configure USDC_ASSET_ID, network, etc.
-python -m uvicorn main:app --reload --port 8000
-
-# 4. Launch frontend
-cd projects/TrustAnchor-frontend
-npm run dev
-```
+### Initial Setup
+1. **Bootstrap**: 
+   ```bash
+   algokit project bootstrap all
+   ```
+2. **Compile ZKP Prover**:
+   Navigate to `/circuits` and build the `gnark` binary.
+3. **Run Backend**:
+   ```bash
+   cd projects/TrustAnchor-backend
+   python -m uvicorn main:app --reload --port 8000
+   ```
+4. **Launch Frontend**:
+   ```bash
+   cd projects/TrustAnchor-frontend
+   npm run dev
+   ```
 
 ---
 
@@ -77,5 +77,3 @@ npm run dev
 
 - [PROJECT.md](PROJECT.md) — Full technical documentation, API reference, architecture
 - [USAGE.md](USAGE.md) — Quick-start guide and commands
-- [SETUP.md](SETUP.md) — Teammate onboarding guide
-- [TASKS.md](TASKS.md) — Task breakdown for 3-member team
