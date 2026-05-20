@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Configure environment variables before importing components
 os.environ["TRUST_ANCHOR_ADDRESS"] = "TRUST_ANCHOR_RECEIVER_ADDRESS_MOCK"
-os.environ["USDC_ASSET_ID"] = "10419441"
+os.environ["USDC_ASSET_ID"] = "10458941"
 
 from pricing import get_price, get_price_usdc, format_price, PricingTier
 from payment_verifier import PaymentVerifier, PaymentVerificationResult
@@ -31,7 +31,7 @@ class TestUSDCPricing(unittest.TestCase):
 class TestUSDCPaymentVerifier(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.receiver = "TRUST_ANCHOR_RECEIVER_ADDRESS_MOCK"
-        self.asset_id = 10419441
+        self.asset_id = 10458941
         self.verifier = PaymentVerifier(
             indexer_url="https://mock-indexer.cloud",
             receiver_address=self.receiver,
@@ -189,8 +189,8 @@ class TestAlgorandUSDCSigner(unittest.TestCase):
         seed = b"a" * 32
         private_key_b64 = base64.b64encode(seed + seed).decode()
         
-        signer = AlgorandSigner(private_key_b64, usdc_asset_id=10419441)
-        self.assertEqual(signer.usdc_asset_id, 10419441)
+        signer = AlgorandSigner(private_key_b64, usdc_asset_id=10458941)
+        self.assertEqual(signer.usdc_asset_id, 10458941)
         self.assertIsNotNone(signer.address)
 
 

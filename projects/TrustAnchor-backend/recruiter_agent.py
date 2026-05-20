@@ -71,9 +71,9 @@ class AlgorandSigner:
         self.algod = AlgodClient(ALGOD_TOKEN, ALGOD_URL)
         if usdc_asset_id is None:
             try:
-                usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10419441"))
+                usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10458941"))
             except ValueError:
-                usdc_asset_id = 10419441
+                usdc_asset_id = 10458941
         self.usdc_asset_id = usdc_asset_id
         logger.info(f"Signer initialized for address: {self.address}, USDC Asset ID: {self.usdc_asset_id}")
 

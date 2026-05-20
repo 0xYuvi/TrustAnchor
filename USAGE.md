@@ -1,6 +1,6 @@
-# TrustAnchor - Usage Guide
+# TrustAnchor — Usage Guide
 
-Privacy-preserving identity verification marketplace on Algorand using zero-knowledge proofs.
+Privacy-preserving identity verification on Algorand. **Institutions pay USDC. Users prove with ZKPs.**
 
 ## Quick Start
 
@@ -11,43 +11,40 @@ Privacy-preserving identity verification marketplace on Algorand using zero-know
 - Python 3.12+
 - Docker (for localnet)
 - Algorand Node (for smart contracts)
+- AlgoKit CLI
 
-### Environment Setup
+### Setup
 
 ```bash
-# 1. Clone the repository
+# 1. Clone
 cd TrustAnchor
 
-# 2. Setup ZKP circuit (Go)
+# 2. Setup ZKP circuit
 cd circuits
 go build -o prover ./cmd/prover
 ./prover setup --dir ./keys
+cd ..
 
-# 3. Setup smart contracts (Python)
-cd ../projects/TrustAnchor-contracts
-poetry install
-algokit localnet start
+# 3. Install backend deps
+pip install -r projects/TrustAnchor-backend/requirements.txt
 
 # 4. Setup frontend
-cd ../TrustAnchor-frontend
+cd projects/TrustAnchor-frontend
 npm install
 ```
 
-## Running the Application
+## Running
 
-### Option 1: Full Stack
+### Backend
 
 ```bash
-# Terminal 1: Start backend
 cd projects/TrustAnchor-backend
-poetry run uvicorn main:app --reload
-
-# Terminal 2: Start frontend
-cd projects/TrustAnchor-frontend
-npm run dev
+cp .env.example .env
+# Edit .env — set USDC_ASSET_ID, ALGORAND_NETWORK, etc.
+python -m uvicorn main:app --reload --port 8000
 ```
 
-### Option 2: Frontend Only
+### Frontend
 
 ```bash
 cd projects/TrustAnchor-frontend
@@ -55,198 +52,68 @@ npm run dev
 # Open http://localhost:5173
 ```
 
-## ZKP Circuit Commands
-
-### Generate Keys
+### Demo (simulated)
 
 ```bash
-cd circuits
-./prover setup --dir ./keys
-```
-
-Output:
-```
-Keys generated successfully!
-Proving Key: ./keys/pk.groth16.key
-Verifying Key: ./keys/vk.groth16.key
-```
-
-### Generate Proof
-
-```bash
-./prover prove \
-  --secret 75000 \
-  --threshold 50000 \
-  --pk ./keys/pk.groth16.key
-```
-
-Output:
-```json
-{
-  "proof": "{\"a\":\"g1_00000000000124f8\",...}",
-  "public_inputs": {"threshold": 50000}
-}
-```
-
-### Verify Proof
-
-```bash
-./prover verify \
-  --proof "<base64_encoded_proof>" \
-  --public '{"threshold": 50000}' \
-  --vk ./keys/vk.groth16.key
-```
-
-## Smart Contract Commands
-
-### Build Contracts
-
-```bash
-cd projects/TrustAnchor-contracts
-algokit project run build
-```
-
-### Deploy to LocalNet
-
-```bash
-algokit project deploy localnet
-```
-
-### Run Tests
-
-```bash
-algokit project run test
-```
-
-## Frontend Commands
-
-### Development
-
-```bash
-cd projects/TrustAnchor-frontend
-npm run dev      # Start dev server
-npm run test    # Run tests
-npm run lint   # Lint code
-```
-
-### Production
-
-```bash
-npm run build    # Build for production
-npm run preview  # Preview production build
-```
-
-## Smart Contract
-
-### Deployed to Testnet
-- **App ID**: 758807528
-- **App Address**: CNQVFP2AP6R67SI4IKDRGFRJUW2P3JIBQD5QER4U27Q4DEH7OAJ4KE3KNE
-- **Issuer**: COBW4B43ZK4EJBWTFY6ZQIMBYMKMLBITGEMWMVHJ2UMWBGAKQBRTL223WI
-- **Network**: Algorand testnet
-
-### Redeploy Contract
-
-```bash
-cd projects/TrustAnchor-contracts
-algokit project run build
-# Deploy via algokit or:
-algokit project deploy testnet
+cd TrustAnchor
+python demo.py --dry-run
 ```
 
 ## Verification Modes
 
-### Boolean Mode (0.1 ALGO)
-- Simple yes/no verification
-- Less private
-- Lower cost
+### Boolean Mode ($0.01 USDC)
+- Simple yes/no threshold check
+- "Is income > $50k?" → true/false
 
-### ZKP Mode (0.5 ALGO)
+### ZKP Mode ($0.10 USDC)
 - Zero-knowledge proof
-- Complete privacy
 - Proves secret > threshold without revealing secret
+- Complete privacy
 
-## Demo Flow
+## API Endpoints
 
-1. **Connect Wallet** - Use Pera, Defly, or Exodus
-2. **Enter Parameters** - User ID, threshold, secret value
-3. **Select Mode** - Boolean or ZKP
-4. **Run Verification** - Complete the flow
-5. **View Result** - Check verification status and proof
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/institutions/register` | Register institution ($2 USDC) |
+| POST | `/verify/request` | Request verification (API key auth) |
+| GET | `/verify/requests` | List institution requests |
+| GET | `/verify/requests/pending/{addr}` | User pending requests |
+| POST | `/verify/approve/{id}` | User approves request |
+| POST | `/verify/income` | Legacy verification |
+| GET | `/pricing` | USDC pricing |
+| GET | `/health` | Health check |
 
-## Project Structure
+## Smart Contracts
 
-```
-TrustAnchor/
-├── circuits/               # ZKP circuit (Go/gnark)
-│   ├── prove.go           # Circuit + proving logic
-│   ├── cmd/prover/       # CLI entry point
-│   ├── keys/            # Generated proving/verifying keys
-│   └── prover          # Compiled binary
-├── projects/
-│   ├── TrustAnchor-contracts/  # Smart contracts (algopy)
-│   │   └── smart_contracts/
-│   │       └── trust_anchor/
-│   ├── TrustAnchor-backend/       # Backend API (FastAPI)
-│   │   └── zkp_service.py
-│   └── TrustAnchor-frontend/      # Frontend (React + TS)
-│       └── src/
-│           └── TrustAnchorApp.tsx
-└── PROJECT.md             # Full project documentation
+### Deployed (Testnet)
+- **TrustAnchor**: App ID 758839639
+- **TruthRegistry**: deployed via algokit
+- **IdentityRegistry**: deployed via algokit
+
+### Build & Deploy
+
+```bash
+cd projects/TrustAnchor-contracts
+algokit project run build
+algokit project deploy localnet
 ```
 
 ## Troubleshooting
 
-### LocalNet Issues
-
+### LocalNet
 ```bash
 algokit localnet reset
 algokit localnet start
 ```
 
-### Key Generation Errors
-
-Make sure Go is installed and in PATH:
+### ZKP
 ```bash
-go version
-go build -o prover ./cmd/prover
+cd circuits && ./prover --help
 ```
 
-### Frontend Build Errors
-
-Check Node version:
+### Frontend
 ```bash
-node --version  # Should be 18+
+node --version  # Need 18+
+npm run lint
+npm test
 ```
-
-### Smart Contract Errors
-
-Ensure localnet is running:
-```bash
-algokit localnet status
-```
-
-## API Endpoints
-
-### Backend (FastAPI)
-
-- `POST /verify` - Submit verification request
-- `GET /status/{proof_id}` - Check verification status
-- `GET /proof/{proof_id}` - Get proof data
-
-### Payments (X402)
-
-- Automatic payment handling via HTTP 402
-- 0.1 ALGO for boolean verification
-- 0.5 ALGO for ZKP verification
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes
-4. Run tests
-5. Submit PR
-
-## License
-
-MIT

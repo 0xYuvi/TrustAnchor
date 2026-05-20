@@ -96,9 +96,9 @@ class PaymentVerifier:
         self.receiver_address = receiver_address
         if usdc_asset_id is None:
             try:
-                usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10419441"))
+                usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10458941"))
             except ValueError:
-                usdc_asset_id = 10419441
+                usdc_asset_id = 10458941
         self.usdc_asset_id = usdc_asset_id
         self._replay_store = replay_store or ReplayPreventionStore()
         self._client: Optional[httpx.AsyncClient] = None
@@ -259,9 +259,9 @@ def create_payment_verifier() -> PaymentVerifier:
         raise ValueError("TRUST_ANCHOR_ADDRESS environment variable is required")
 
     try:
-        usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10419441"))
+        usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10458941"))
     except ValueError:
-        usdc_asset_id = 10419441
+        usdc_asset_id = 10458941
 
     return PaymentVerifier(
         indexer_url=indexer_url,

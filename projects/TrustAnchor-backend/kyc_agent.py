@@ -2,15 +2,17 @@
 KYC Agent for TrustAnchor Protocol.
 
 This module acts as the Trusted Issuer (e.g., Plaid, Government ID Provider).
-It retrieves "true" data, hashes it with a cryptographic salt, and anchors
-those commitments to the Algorand smart contract.
+Institutions initiate the anchoring process — they register their users'
+verified identity commitments on-chain. No PII is stored, only cryptographic
+commitments.
 
-Flow:
-1. User authenticates with KYC Agent
-2. Agent fetches verified identity data
+Institution-initiated flow:
+1. Institution verifies user data (bank statement, government ID, etc.)
+2. Institution calls KYC Agent to generate commitment
 3. Agent creates commitment: Hash(data + issuer_salt)
 4. Agent anchors to Algorand smart contract (REAL TRANSACTION)
 5. User can now generate ZKP backed by anchored identity
+6. Other institutions pay to verify claims against the commitment
 """
 
 import hashlib
@@ -63,6 +65,7 @@ class IdentityAnchor(BaseModel):
 class KYCAgent:
     """
     Identity Provider that anchors to Algorand.
+    Institutions use this to register verified identity commitments on-chain.
     Uses KYC_ORACLE_MNEMONIC to sign transactions.
     """
 
@@ -99,10 +102,11 @@ class KYCAgent:
         self, user_address: str, create_onchain: bool = True, **kwargs
     ) -> tuple[KYCRecord, IdentityAnchor]:
         """
-        Main KYC anchoring flow:
-        1. Fetch verified data
-        2. Create commitment
-        3. Anchor to Algorand (REAL TRANSACTION)
+        Main KYC anchoring flow (institution-initiated):
+        1. Institution provides verified user data
+        2. Generate cryptographic commitment
+        3. Anchor commitment to Algorand (REAL TRANSACTION)
+        4. PII discarded — only commitment persists
         """
         logger.info(
             f"[KYC Agent] Starting identity extraction for {user_address[:8]}..."

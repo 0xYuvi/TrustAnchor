@@ -1,5 +1,16 @@
 import { AlgoViteClientConfig, AlgoViteKMDConfig } from '../../interfaces/network'
 
+export const USDC_ASSET_IDS: Record<string, number> = {
+  mainnet: 31566704,
+  testnet: 10458941,
+  localnet: 10458941,
+}
+
+export function getUsdcAssetId(): number {
+  const network = import.meta.env.VITE_ALGOD_NETWORK || 'testnet'
+  return USDC_ASSET_IDS[network] || USDC_ASSET_IDS.testnet
+}
+
 export function getAlgodConfigFromViteEnvironment(): AlgoViteClientConfig {
   if (!import.meta.env.VITE_ALGOD_SERVER) {
     return {
