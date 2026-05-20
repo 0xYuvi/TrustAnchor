@@ -7,6 +7,8 @@ Handles:
 - Secure key management
 """
 
+import asyncio
+import base64
 import hashlib
 import logging
 import os
@@ -87,10 +89,17 @@ class PaymentVerifier:
         self,
         indexer_url: str,
         receiver_address: str,
+        usdc_asset_id: Optional[int] = None,
         replay_store: Optional[ReplayPreventionStore] = None,
     ):
         self.indexer_url = indexer_url.rstrip("/")
         self.receiver_address = receiver_address
+        if usdc_asset_id is None:
+            try:
+                usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10419441"))
+            except ValueError:
+                usdc_asset_id = 10419441
+        self.usdc_asset_id = usdc_asset_id
         self._replay_store = replay_store or ReplayPreventionStore()
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -138,10 +147,31 @@ class PaymentVerifier:
 
                 data = response.json()
                 txn = data.get("transaction", {})
-                payment_txn = txn.get("payment-transaction", {})
+                
+                # Verify it is an asset transfer transaction (tx-type == "axfer")
+                tx_type = txn.get("tx-type")
+                if tx_type != "axfer":
+                    return PaymentVerificationResult(
+                        valid=False,
+                        error=f"Wrong transaction type: Expected axfer, Got {tx_type}",
+                    )
 
-                receiver = payment_txn.get("receiver")
-                amount = int(payment_txn.get("amount", 0))
+                asset_txn = txn.get("asset-transfer-transaction", {})
+                if not asset_txn:
+                    return PaymentVerificationResult(
+                        valid=False,
+                        error="Missing asset-transfer-transaction details",
+                    )
+
+                asset_id = int(asset_txn.get("asset-id", 0))
+                if asset_id != self.usdc_asset_id:
+                    return PaymentVerificationResult(
+                        valid=False,
+                        error=f"Wrong asset ID: Expected {self.usdc_asset_id}, Got {asset_id}",
+                    )
+
+                receiver = asset_txn.get("receiver")
+                amount = int(asset_txn.get("amount", 0))
                 actual_sender = txn.get("sender")
                 txn_note = txn.get("note", "")
 
@@ -150,18 +180,33 @@ class PaymentVerifier:
                     return PaymentVerificationResult(valid=False, error="Wrong receiver")
 
                 if amount < expected_amount:
+                    logger.error(f"[PAYMENT] Insufficient payment amount: Expected {expected_amount}, Got {amount}")
                     return PaymentVerificationResult(valid=False, error=f"Insufficient payment: {amount}")
 
                 if sender and actual_sender != sender:
                     return PaymentVerificationResult(valid=False, error="Wrong sender")
 
                 if note:
+                    decoded_note = None
                     try:
-                        note_bytes = bytes.fromhex(txn_note)
-                        if note_bytes.decode("utf-8") != note:
-                            return PaymentVerificationResult(valid=False, error="Note mismatch")
+                        decoded_bytes = base64.b64decode(txn_note)
+                        decoded_note = decoded_bytes.decode("utf-8")
                     except Exception:
-                        return PaymentVerificationResult(valid=False, error="Invalid note")
+                        pass
+
+                    if not decoded_note or decoded_note != note:
+                        try:
+                            decoded_bytes = bytes.fromhex(txn_note)
+                            decoded_note = decoded_bytes.decode("utf-8")
+                        except Exception:
+                            pass
+
+                    if not decoded_note:
+                        decoded_note = txn_note
+
+                    if decoded_note != note:
+                        logger.error(f"[PAYMENT] Note mismatch: Expected '{note}', Got '{decoded_note}'")
+                        return PaymentVerificationResult(valid=False, error="Note mismatch")
 
                 payment = PaymentDetails(
                     txid=txid,
@@ -213,7 +258,14 @@ def create_payment_verifier() -> PaymentVerifier:
     if not receiver_address:
         raise ValueError("TRUST_ANCHOR_ADDRESS environment variable is required")
 
+    try:
+        usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10419441"))
+    except ValueError:
+        usdc_asset_id = 10419441
+
     return PaymentVerifier(
         indexer_url=indexer_url,
         receiver_address=receiver_address,
+        usdc_asset_id=usdc_asset_id,
     )
+

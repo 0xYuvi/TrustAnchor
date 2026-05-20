@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from payment_verifier import PaymentVerifier, create_payment_verifier
-from pricing import VerificationMode, get_price, get_price_algo
+from pricing import VerificationMode, get_price, get_price_usdc, format_price
 from zkp_service import ZKPService, create_zkp_service
 from kyc_agent import KYCAgent, kyc_issuer_agent, KYCRecord, IdentityAnchor
 
@@ -48,6 +48,7 @@ ALGORAND_INDEXER_URL = os.getenv(
 )
 
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://x402.org/facilitator")
+USDC_ASSET_ID = int(os.getenv("USDC_ASSET_ID", "10419441"))
 
 
 class IncomeVerificationRequest(BaseModel):
@@ -204,13 +205,15 @@ async def get_pricing():
     """Get current pricing for verification modes."""
     return {
         "boolean": {
-            "price_microalgo": get_price("boolean"),
-            "price_algo": get_price_algo("boolean"),
+            "price_microusdc": get_price("boolean"),
+            "price_usdc": get_price_usdc("boolean"),
+            "formatted": format_price("boolean"),
             "description": "Simple boolean verification",
         },
         "zkp": {
-            "price_microalgo": get_price("zkp"),
-            "price_algo": get_price_algo("zkp"),
+            "price_microusdc": get_price("zkp"),
+            "price_usdc": get_price_usdc("zkp"),
+            "formatted": format_price("zkp"),
             "description": "Zero-knowledge proof verification",
         },
     }
@@ -474,6 +477,56 @@ async def get_kyc_status(user_address: str):
 # Verification Endpoint
 # =============================================================================
 
+@app.post("/verify/income")
+async def verify_income(
+    http_request: Request,
+    request: IncomeVerificationRequest,
+):
+    """
+    Verify income with boolean or ZKP mode.
+    Paid by the recruiter agent (institution).
+    """
+    txid = http_request.headers.get("x402-payment-proof") or request.payment_txid
+    expected_amount = get_price(request.mode)
+
+    if not txid:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "Payment required",
+                "paymentRequirements": [
+                    {
+                        "maximumAmountRequired": expected_amount,
+                        "payTo": TRUST_ANCHOR_ADDRESS,
+                        "network": f"algorand:{ALGORAND_NETWORK}",
+                        "assetId": USDC_ASSET_ID,
+                        "scheme": "exact",
+                    }
+                ],
+            },
+        )
+
+    if request.mode == "zkp":
+        if request.secret_value is None:
+            raise HTTPException(status_code=400, detail="secret_value required for ZKP")
+        return await _verify_zkp(
+            user_id=request.user_id,
+            secret_value=int(request.secret_value),
+            threshold=request.threshold or 0,
+            payer="",
+            txid=txid,
+            expected_amount=expected_amount,
+        )
+    else:
+        return await _verify_boolean(
+            user_id=request.user_id,
+            threshold=request.threshold or 0,
+            payer="",
+            txid=txid,
+            expected_amount=expected_amount,
+        )
+
+
 @app.post("/attestation/generate", response_model=ZKPResult)
 async def generate_attestation(request: IncomeVerificationRequest):
     """
@@ -536,6 +589,8 @@ async def create_inquiry(
                         "maximumAmountRequired": expected_amount,
                         "payTo": TRUST_ANCHOR_ADDRESS,
                         "network": f"algorand:{ALGORAND_NETWORK}",
+                        "assetId": USDC_ASSET_ID,
+                        "scheme": "exact",
                     }
                 ],
             },
