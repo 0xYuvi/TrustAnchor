@@ -16,7 +16,7 @@ TrustAnchor is a privacy-preserving identity verification protocol on Algorand. 
 | Onboarding | Register on platform | $2 one-time | Institution |
 
 ### Why only USDC?
-Enterprise buyers need stable, predictable pricing. ALGO is volatile. USDC (ASA `31566704` mainnet / `10419441` testnet) gives institutions fixed costs they can budget.
+Enterprise buyers need stable, predictable pricing. ALGO is volatile. USDC (ASA `31566704` mainnet / `10458941` testnet) gives institutions fixed costs they can budget.
 
 ---
 

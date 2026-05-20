@@ -152,6 +152,9 @@ dmypy.json
 # Ruff (linter)
 .ruff_cache/
 
+# Graphify output
+graphify-out/
+
 # Cython debug symbols
 cython_debug/
 

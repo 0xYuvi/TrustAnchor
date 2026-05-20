@@ -174,7 +174,7 @@ Response (402 Payment Required):
       "paymentRequirements": [{
         "scheme": "exact",
         "network": "algorand:testnet",
-        "assetId": 10419441,
+        "assetId": 10458941,
         "payTo": "TRUST_ANCHOR_ADDRESS",
         "maximumAmountRequired": 100000,
         "description": "zkp verification"
@@ -183,7 +183,7 @@ Response (402 Payment Required):
   }
 
 Payment:
-  AssetTransferTxn(assetId=10419441, amount=100000, receiver=ISSUER)
+  AssetTransferTxn(assetId=10458941, amount=100000, receiver=ISSUER)
 
 Retry:
   POST /verify/request
@@ -197,7 +197,7 @@ Retry:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| USDC_ASSET_ID | 10419441 | USDC ASA (mainnet: 31566704) |
+| USDC_ASSET_ID | 10458941 | USDC ASA (mainnet: 31566704) |
 | DEFAULT_USDC_DECIMALS | 6 | USDC decimal places |
 | TRUST_ANCHOR_ADDRESS | — | Issuer payment address |
 | ALGORAND_NETWORK | testnet | Network selection |

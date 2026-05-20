@@ -114,6 +114,8 @@ async def require_institution(
 
 class InstitutionRegisterRequest(BaseModel):
     name: str = Field(..., description="Institution name")
+    institution_type: str = Field(..., description="Type: bank, employer, defi_protocol, exchange, lender, government, kyc_provider, other")
+    required_traits: list[str] = Field(..., description="What the institution needs from the prover. Options: full_name, income_annual, citizenship, date_of_birth, address, employment_status, credit_score, phone_number")
     address: str = Field(..., description="Algorand address for USDC payments")
     email: Optional[str] = None
     onboarding_txid: Optional[str] = Field(None, description="USDC transfer txid for onboarding fee ($2)")
@@ -123,6 +125,8 @@ class InstitutionRegisterResponse(BaseModel):
     institution_id: str
     api_key: str
     name: str
+    institution_type: str
+    required_traits: list[str]
     address: str
     quota: int
     message: str
@@ -140,11 +144,15 @@ class VerifyRequestCreate(BaseModel):
     user_id: str = Field(..., description="Target user to verify")
     mode: Literal["boolean", "zkp"] = Field(default="boolean")
     threshold: float = Field(..., description="Income threshold to check")
+    required_traits: Optional[list[str]] = Field(None, description="Traits requested from the prover. Defaults to institution's registered required_traits.")
 
 
 class VerifyRequestResponse(BaseModel):
     request_id: str
     user_id: str
+    institution_name: str
+    institution_type: str
+    required_traits: list[str]
     mode: str
     threshold: float
     status: str
@@ -349,6 +357,7 @@ async def register_institution(request: InstitutionRegisterRequest):
     verification = await payment_verifier.verify_payment(
         txid=request.onboarding_txid,
         expected_amount=ONBOARDING_FEE,
+        expected_asset_id=USDC_ASSET_ID,
     )
     if not verification.valid:
         raise HTTPException(status_code=400, detail=verification.error)
@@ -358,6 +367,8 @@ async def register_institution(request: InstitutionRegisterRequest):
 
     institution_store[institution_id] = {
         "name": request.name,
+        "institution_type": request.institution_type,
+        "required_traits": request.required_traits,
         "address": request.address,
         "email": request.email,
         "api_key": api_key,
@@ -374,6 +385,8 @@ async def register_institution(request: InstitutionRegisterRequest):
         institution_id=institution_id,
         api_key=api_key,
         name=request.name,
+        institution_type=request.institution_type,
+        required_traits=request.required_traits,
         address=request.address,
         quota=subscription_tracker.remaining(institution_id),
         message="Keep your API key secure. It will not be shown again.",
@@ -388,6 +401,8 @@ async def get_institution_info(
     return {
         "institution_id": institution_id,
         "name": data.get("name"),
+        "institution_type": data.get("institution_type"),
+        "required_traits": data.get("required_traits", []),
         "address": data.get("address"),
         "tier": data.get("tier"),
         "remaining_quota": subscription_tracker.remaining(institution_id),
@@ -407,6 +422,7 @@ async def subscribe_monthly(
     verification = await payment_verifier.verify_payment(
         txid=payment_txid,
         expected_amount=SUBSCRIPTION_MONTHLY_COST,
+        expected_asset_id=USDC_ASSET_ID,
     )
     if not verification.valid:
         raise HTTPException(status_code=400, detail=verification.error)
@@ -456,11 +472,20 @@ async def create_verification_request(
             },
         )
 
+    inst_data = institution_store.get(institution_id, {})
+    inst_name = inst_data.get("name", "Unknown")
+    inst_type = inst_data.get("institution_type", "other")
+    inst_traits = inst_data.get("required_traits", [])
+    traits = request.required_traits if request.required_traits is not None else inst_traits
+
     request_id = f"vr_{uuid.uuid4().hex[:16]}"
 
     verification_requests[request_id] = {
         "request_id": request_id,
         "institution_id": institution_id,
+        "institution_name": inst_name,
+        "institution_type": inst_type,
+        "required_traits": traits,
         "user_id": request.user_id,
         "mode": request.mode,
         "threshold": request.threshold,
@@ -476,6 +501,9 @@ async def create_verification_request(
     return VerifyRequestResponse(
         request_id=request_id,
         user_id=request.user_id,
+        institution_name=inst_name,
+        institution_type=inst_type,
+        required_traits=traits,
         mode=request.mode,
         threshold=request.threshold,
         status="pending",
@@ -501,6 +529,9 @@ async def list_verification_requests(
             results.append({
                 "request_id": req["request_id"],
                 "user_id": req["user_id"],
+                "institution_name": req.get("institution_name", "Unknown"),
+                "institution_type": req.get("institution_type", "other"),
+                "required_traits": req.get("required_traits", []),
                 "mode": req["mode"],
                 "threshold": req["threshold"],
                 "status": req["status"],
@@ -518,6 +549,9 @@ async def get_pending_requests_for_user(user_address: str):
         if req["user_id"] == user_address and req["status"] == "pending":
             results.append({
                 "request_id": req["request_id"],
+                "institution_name": req.get("institution_name", "Unknown"),
+                "institution_type": req.get("institution_type", "other"),
+                "required_traits": req.get("required_traits", []),
                 "mode": req["mode"],
                 "threshold": req["threshold"],
                 "created_at": req["created_at"],

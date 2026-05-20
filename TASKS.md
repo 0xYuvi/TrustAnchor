@@ -26,7 +26,7 @@
 6. Institution reads: is_proof_verified(proof_id) = true
 ```
 
-**USDC Asset**: Mainnet ASA ID `31566704`. On testnet: `10419441`.
+**USDC Asset**: Mainnet ASA ID `31566704`. On testnet: `10458941`.
 
 ---
 
@@ -87,7 +87,7 @@
 | `projects/TrustAnchor-frontend/src/components/AppCalls.tsx` | Update to construct USDC `AssetTransferTxn` instead of ALGO `PaymentTxn`. Use `algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject()`. |
 | `projects/TrustAnchor-frontend/src/components/Transact.tsx` | Show "Pay $0.10 USDC" instead of "Pay 0.5 ALGO". |
 | `projects/TrustAnchor-frontend/src/components/ConnectWallet.tsx` | Add network switch hint (testnet USDC pool vs mainnet). |
-| `projects/TrustAnchor-frontend/src/utils/network/getAlgoClientConfigs.ts` | Add `USDC_ASSET_ID` to network configs (mainnet: 31566704, testnet: 10419441). |
+| `projects/TrustAnchor-frontend/src/utils/network/getAlgoClientConfigs.ts` | Add `USDC_ASSET_ID` to network configs (mainnet: 31566704, testnet: 10458941). |
 | `projects/TrustAnchor-frontend/public/index.html` | Update tagline / meta to reflect institution-pays model. |
 | `projects/TrustAnchor-backend/.env.example` | Add `USDC_ASSET_ID=31566704`, `DEFAULT_USDC_DECIMALS=6`, placeholder for `INSTITUTION_API_KEYS`. |
 | `TrustAnchor/README.md` | Rewrite business model: USDC-only, institution pays. Update pricing table. Update architecture diagram. |

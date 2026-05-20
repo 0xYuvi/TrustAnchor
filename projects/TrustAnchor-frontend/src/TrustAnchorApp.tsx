@@ -14,6 +14,8 @@ const formatUsdc = (microUsdc: number) => `$${(microUsdc / MICRO_USDC).toFixed(2
 interface Institution {
   institution_id: string
   name: string
+  institution_type: string
+  required_traits: string[]
   api_key: string
   quota: number
 }
@@ -21,6 +23,9 @@ interface Institution {
 interface VerificationRequest {
   request_id: string
   user_address: string
+  institution_name: string
+  institution_type: string
+  required_traits: string[]
   mode: string
   threshold: number
   status: string
@@ -38,7 +43,7 @@ interface KYCData {
 }
 
 const TrustAnchorApp: React.FC = () => {
-  const { activeAddress, wallets } = useWallet()
+  const { activeAddress, wallets, signTransactions } = useWallet()
 
   const [openWalletModal, setOpenWalletModal] = useState(false)
   const [portalMode, setPortalMode] = useState<'citizen' | 'institution'>('citizen')
@@ -56,7 +61,8 @@ const TrustAnchorApp: React.FC = () => {
   // --- Institution State ---
   const [institution, setInstitution] = useState<Institution | null>(null)
   const [instName, setInstName] = useState('')
-  const [onboardingTxid, setOnboardingTxid] = useState('')
+  const [instType, setInstType] = useState('bank')
+  const [instRequiredTraits, setInstRequiredTraits] = useState<string[]>(['full_name', 'income_annual'])
   const [instRequests, setInstRequests] = useState<VerificationRequest[]>([])
   const [instTargetUser, setInstTargetUser] = useState('')
   const [instThreshold, setInstThreshold] = useState(50000)
@@ -67,34 +73,97 @@ const TrustAnchorApp: React.FC = () => {
   const [pendingRequests, setPendingRequests] = useState<VerificationRequest[]>([])
   const [inqCodeInput, setInqCodeInput] = useState('')
 
-  // --- Institution Registration ---
+  // --- Institution Registration with x402 ---
   const handleRegisterInstitution = async () => {
     if (!instName || !activeAddress) return
     setLoading(true)
     setError('')
     setLogs([])
     addLog('[INST] Registering institution...')
-    const onboardTx = onboardingTxid || `sim_${Date.now()}`
+
     try {
-      const res = await fetch(`${BACKEND_URL}/institutions/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: instName, address: activeAddress, onboarding_txid: onboardTx }),
-      })
+      const tryRegister = async (txid?: string) => {
+        return await fetch(`${BACKEND_URL}/institutions/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: instName, institution_type: instType, required_traits: instRequiredTraits, address: activeAddress, onboarding_txid: txid || '' }),
+        })
+      }
+
+      let res = await tryRegister()
+      if (res.status === 402) {
+        const payReq = await res.json()
+        const req = payReq?.detail?.paymentRequirements?.[0] || {}
+        const payTo = req.payTo || ''
+        const amount = req.amount || 2_000_000
+        const assetId = req.assetId || 10458941
+        addLog(`[INST] Pay $2.00 USDC to ${payTo.slice(0, 8)}...`)
+        addLog('[INST] Wallet should prompt to sign...')
+        try {
+          const algosdk = await import('algosdk')
+          const algodClient = new algosdk.Algodv2(
+            '',
+            import.meta.env.VITE_ALGOD_SERVER || 'https://testnet-api.algonode.cloud',
+            import.meta.env.VITE_ALGOD_PORT || '',
+          )
+          const params = await algodClient.getTransactionParams().do()
+          const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+            sender: activeAddress,
+            receiver: payTo,
+            amount: BigInt(amount),
+            assetIndex: assetId,
+            suggestedParams: params,
+          })
+          addLog('[INST] Waiting for wallet signature...')
+          const signedTxsRaw = await signTransactions([txn.toByte()])
+          const signedTxs = signedTxsRaw.filter((tx): tx is Uint8Array => tx !== null)
+          const tx = signedTxs[0]
+          if (!tx) throw new Error('Signing was cancelled or failed')
+          const txResult = (await algodClient.sendRawTransaction([tx]).do()) as any
+          const txId: string = txResult.txId || txResult.txID || txResult.txid
+          addLog(`[TX] USDC sent: ${txId.slice(0, 16)}...`)
+          await algosdk.waitForConfirmation(algodClient, txId, 10)
+          addLog('[TX] Confirmed on-chain!')
+
+          addLog('[INST] Retrying registration...')
+          res = await tryRegister(txId)
+          const responseData = await res.json()
+          if (!res.ok) throw new Error(responseData.detail?.error || responseData.detail || 'Registration failed')
+          setInstitution(responseData)
+          addLog(`[INST] Registered! ID: ${responseData.institution_id}`)
+          setSuccessMsg('Institution registered! Save your API key.')
+        } catch (payErr: any) {
+          const msg = payErr.message || String(payErr)
+          console.error('[TRUSTANCHOR] Payment error:', payErr)
+          addLog(`[ERROR] ${msg}`)
+          if (msg.includes('cancelled') || msg.includes('Cancelled') || msg.includes('User denied')) {
+            setError('Payment was cancelled')
+          } else if (msg.includes('opted in') || msg.includes('not opted')) {
+            setError('Opt into USDC first: ASA 10458941 on testnet')
+          } else {
+            setError(msg || 'USDC payment failed. Check browser console for details.')
+          }
+        }
+        setLoading(false)
+        return
+      }
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail || 'Registration failed')
+        setError(err.detail?.error || err.detail || 'Registration failed')
+        addLog(`[ERROR] Registration failed: ${res.status}`)
+        setLoading(false)
+        return
       }
       const data = await res.json()
       setInstitution(data)
-      addLog(`[INST] Registered! ID: ${data.institution_id}, Quota: ${data.quota}`)
+      addLog(`[INST] Registered! ID: ${data.institution_id}`)
       setSuccessMsg('Institution registered! Save your API key.')
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message || 'Network error')
       addLog(`[ERROR] ${err.message}`)
-    } finally {
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   // --- Institution: Request Verification ---
@@ -346,13 +415,45 @@ const TrustAnchorApp: React.FC = () => {
                           onChange={(e) => setInstName(e.target.value)}
                           className="w-full bg-black border border-[#2a2a2a] p-6 rounded-3xl font-black text-white focus:outline-none focus:border-purple-500 text-center text-xl"
                         />
-                        <input
-                          type="text"
-                          placeholder="Onboarding TXID (or leave blank for simulation)"
-                          value={onboardingTxid}
-                          onChange={(e) => setOnboardingTxid(e.target.value)}
-                          className="w-full bg-black border border-[#2a2a2a] p-4 rounded-2xl text-slate-400 focus:outline-none focus:border-purple-500 text-center text-sm font-mono"
-                        />
+
+                        <select
+                          value={instType}
+                          onChange={(e) => setInstType(e.target.value)}
+                          className="w-full bg-black border border-[#2a2a2a] p-6 rounded-3xl font-black text-white focus:outline-none focus:border-purple-500 text-center text-xl appearance-none cursor-pointer"
+                        >
+                          <option value="bank">Bank / Financial Institution</option>
+                          <option value="employer">Employer / HR</option>
+                          <option value="defi_protocol">DeFi Protocol</option>
+                          <option value="exchange">Exchange</option>
+                          <option value="lender">Lender / Credit</option>
+                          <option value="government">Government / KYC</option>
+                          <option value="kyc_provider">KYC Provider</option>
+                          <option value="other">Other</option>
+                        </select>
+
+                        <div className="bg-[#0A0A0A] border border-[#2a2a2a] p-6 rounded-3xl text-left space-y-3">
+                          <div className="text-[10px] font-black uppercase text-purple-400 tracking-widest mb-3">Required from Prover</div>
+                          {['full_name', 'income_annual', 'citizenship', 'date_of_birth', 'address', 'employment_status', 'credit_score', 'phone_number'].map((trait) => (
+                            <label key={trait} className="flex items-center gap-3 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={instRequiredTraits.includes(trait)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setInstRequiredTraits([...instRequiredTraits, trait])
+                                  } else {
+                                    setInstRequiredTraits(instRequiredTraits.filter((t) => t !== trait))
+                                  }
+                                }}
+                                className="w-5 h-5 accent-purple-500 rounded"
+                              />
+                              <span className="text-sm font-black uppercase tracking-widest text-slate-300 group-hover:text-white transition-colors">
+                                {trait.replace(/_/g, ' ')}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+
                         <div className="bg-purple-500/5 p-6 rounded-2xl border border-purple-500/10 space-y-2 text-left">
                           <div className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Onboarding Fee</div>
                           <div className="text-2xl font-black text-white">{formatUsdc(2000000)}</div>
@@ -360,7 +461,7 @@ const TrustAnchorApp: React.FC = () => {
                         </div>
                         <button
                           onClick={handleRegisterInstitution}
-                          disabled={loading || !instName}
+                          disabled={loading || !instName || instRequiredTraits.length === 0}
                           className="btn-premium w-full py-8 text-base"
                         >
                           {loading ? 'Registering...' : `Register — ${formatUsdc(2000000)}`}
@@ -368,14 +469,26 @@ const TrustAnchorApp: React.FC = () => {
                       </div>
                     ) : (
                       <div className="space-y-8">
-                        <div className="bg-green-500/5 border border-green-500/20 p-6 rounded-2xl flex items-center justify-between">
-                          <div className="text-left">
-                            <div className="text-[10px] font-black uppercase text-green-400 tracking-widest">Registered</div>
-                            <div className="text-lg font-black text-white">{institution.name}</div>
+                        <div className="bg-green-500/5 border border-green-500/20 p-6 rounded-2xl">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="text-left">
+                              <div className="text-[10px] font-black uppercase text-green-400 tracking-widest">Registered</div>
+                              <div className="text-lg font-black text-white">{institution.name}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Quota</div>
+                              <div className="text-2xl font-black text-purple-400">{institution.quota}</div>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Quota</div>
-                            <div className="text-2xl font-black text-purple-400">{institution.quota}</div>
+                          <div className="flex flex-wrap gap-4 text-[11px]">
+                            <div className="px-3 py-1.5 bg-purple-500/10 rounded-xl border border-purple-500/20 text-purple-300 font-bold uppercase tracking-widest">
+                              {institution.institution_type.replace(/_/g, ' ')}
+                            </div>
+                            {institution.required_traits?.map((t: string) => (
+                              <span key={t} className="px-3 py-1.5 bg-black rounded-xl border border-[#2a2a2a] text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                {t.replace(/_/g, ' ')}
+                              </span>
+                            ))}
                           </div>
                         </div>
 
@@ -536,35 +649,50 @@ const TrustAnchorApp: React.FC = () => {
 
                         {pendingRequests.map((req) => (
                           <div key={req.request_id} className="max-w-2xl mx-auto p-8 border border-purple-500/20 rounded-[2.5rem] bg-[#0A0A0A] text-left mb-6 animate-in slide-in-from-top-10 duration-1000 shadow-2xl relative overflow-hidden">
-                            <div className="flex justify-between items-start mb-6">
-                              <div className="space-y-2">
-                                <h3 className="text-2xl font-black uppercase text-white tracking-tight leading-none">Verification Request</h3>
-                                <p className="text-[11px] text-slate-600 font-mono tracking-widest uppercase">{req.request_id.slice(0, 24)}...</p>
+                              <div className="flex justify-between items-start mb-6">
+                                <div className="space-y-2">
+                                  <h3 className="text-2xl font-black uppercase text-white tracking-tight leading-none">Verification Request</h3>
+                                  <p className="text-[11px] text-slate-600 font-mono tracking-widest uppercase">{req.request_id.slice(0, 24)}...</p>
+                                </div>
+                                <div className="px-4 py-2 bg-purple-500/10 text-purple-400 text-[10px] font-black rounded-2xl border border-purple-500/20 uppercase tracking-widest">
+                                  {req.mode}
+                                </div>
                               </div>
-                              <div className="px-4 py-2 bg-purple-500/10 text-purple-400 text-[10px] font-black rounded-2xl border border-purple-500/20 uppercase tracking-widest">
-                                {req.mode}
-                              </div>
-                            </div>
 
-                            <div className="grid md:grid-cols-2 gap-6 mb-8">
-                              <div className="p-6 bg-black rounded-[1.5rem] border border-[#2a2a2a]">
-                                <span className="text-[11px] text-slate-600 uppercase font-black tracking-[0.2em] block mb-2">Institution</span>
-                                <span className="text-sm font-mono text-white">{req.user_address.slice(0, 16)}...</span>
+                              <div className="flex flex-wrap gap-2 mb-6">
+                                <span className="px-3 py-1.5 bg-purple-500/10 rounded-xl border border-purple-500/20 text-purple-300 text-[10px] font-bold uppercase tracking-widest">
+                                  {req.institution_name || 'Unknown'}
+                                </span>
+                                <span className="px-3 py-1.5 bg-black rounded-xl border border-[#2a2a2a] text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                                  {req.institution_type?.replace(/_/g, ' ') || 'Institution'}
+                                </span>
                               </div>
-                              <div className="p-6 bg-black rounded-[1.5rem] border border-[#2a2a2a]">
-                                <span className="text-[11px] text-slate-600 uppercase font-black tracking-[0.2em] block mb-2">Threshold</span>
-                                <span className="text-2xl font-black text-white">${req.threshold.toLocaleString()}</span>
-                              </div>
-                            </div>
 
-                            <div className="bg-purple-500/5 p-6 rounded-[1.5rem] border border-purple-500/10 mb-6 flex items-center gap-6">
-                              <div className="w-10 h-10 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                              <div className="grid md:grid-cols-2 gap-6 mb-6">
+                                <div className="space-y-2">
+                                  <span className="text-[11px] text-slate-600 uppercase font-black tracking-[0.2em] block">Traits Requested</span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {(req.required_traits || []).map((t: string) => (
+                                      <span key={t} className="px-2 py-1 bg-black rounded-lg border border-[#2a2a2a] text-slate-400 text-[9px] font-bold uppercase tracking-wider">
+                                        {t.replace(/_/g, ' ')}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="p-4 bg-black rounded-[1.5rem] border border-[#2a2a2a]">
+                                  <span className="text-[11px] text-slate-600 uppercase font-black tracking-[0.2em] block mb-1">Threshold</span>
+                                  <span className="text-2xl font-black text-white">${req.threshold.toLocaleString()}</span>
+                                </div>
                               </div>
-                              <p className="text-sm text-slate-500 font-medium">
-                                The institution will receive a <span className="text-purple-400 font-bold">mathematical proof</span> — no raw data revealed.
-                              </p>
-                            </div>
+
+                              <div className="bg-purple-500/5 p-6 rounded-[1.5rem] border border-purple-500/10 mb-6 flex items-center gap-6">
+                                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0">
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                </div>
+                                <p className="text-sm text-slate-500 font-medium">
+                                  The institution will receive a <span className="text-purple-400 font-bold">mathematical proof</span> — no raw data revealed.
+                                </p>
+                              </div>
 
                             {req.status === 'fulfilled' ? (
                               <div className={`py-6 rounded-[2rem] text-center font-black uppercase flex items-center justify-center gap-4 ${req.result ? 'bg-green-500/5 border border-green-500/40 text-green-400' : 'bg-red-500/5 border border-red-500/40 text-red-500'}`}>

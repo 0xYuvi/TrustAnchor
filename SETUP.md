@@ -91,7 +91,7 @@ Edit `.env` with your values:
 |----------|-------------|---------|
 | `TRUST_ANCHOR_ADDRESS` | Issuer payment address | Required |
 | `ALGORAND_NETWORK` | Network | `testnet` |
-| `USDC_ASSET_ID` | USDC ASA ID (mainnet: 31566704, testnet: 10419441) | `31566704` |
+| `USDC_ASSET_ID` | USDC ASA ID (mainnet: 31566704, testnet: 10458941) | `31566704` |
 | `KYC_ORACLE_MNEMONIC` | 25-word mnemonic (optional, simulated anchors without it) | — |
 | `TRUTH_REGISTRY_APP_ID` | Deployed contract ID | `758839639` |
 | `INSTITUTION_API_KEYS` | Comma-separated API keys for institutions | — |
