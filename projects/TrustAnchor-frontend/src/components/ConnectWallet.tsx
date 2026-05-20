@@ -2,7 +2,7 @@ import { useWallet, Wallet, WalletId } from '@txnlab/use-wallet-react'
 import Account from './Account'
 
 const USDC_MAINNET = 31566704
-const USDC_TESTNET = 10419441
+const USDC_TESTNET = 10458941
 const USDC_ASSET_ID = import.meta.env.VITE_ALGOD_NETWORK === 'mainnet' ? USDC_MAINNET : USDC_TESTNET
 
 interface ConnectWalletInterface {

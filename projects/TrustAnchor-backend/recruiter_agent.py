@@ -60,16 +60,22 @@ class VerificationResult:
 
 class AlgorandSigner:
     """
-    Signs Algorand transactions for payment.
+    Signs Algorand transactions for payment, including USDC asset transfers.
 
     Uses local private key for signing.
     """
 
-    def __init__(self, private_key_b64: str):
+    def __init__(self, private_key_b64: str, usdc_asset_id: Optional[int] = None):
         self.secret_key = base64.b64decode(private_key_b64)
         self.address = encoding.encode_address(self.secret_key[32:])
         self.algod = AlgodClient(ALGOD_TOKEN, ALGOD_URL)
-        logger.info(f"Signer initialized for address: {self.address}")
+        if usdc_asset_id is None:
+            try:
+                usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "10458941"))
+            except ValueError:
+                usdc_asset_id = 10458941
+        self.usdc_asset_id = usdc_asset_id
+        logger.info(f"Signer initialized for address: {self.address}, USDC Asset ID: {self.usdc_asset_id}")
 
     def get_params(self) -> dict:
         """Get suggested transaction parameters."""
@@ -110,10 +116,7 @@ class AlgorandSigner:
                 )
 
                 signed = txn.sign(self.secret_key)
-
-                txid = self.algod.send_raw_transaction(
-                    base64.b64encode(signed.signature)
-                )
+                txid = self.algod.send_transaction(signed)
 
                 self._wait_for_confirmation(txid)
 
@@ -128,6 +131,51 @@ class AlgorandSigner:
                     raise
 
         raise RuntimeError(f"Failed to send payment after {max_retries} attempts")
+
+    def send_usdc_payment(
+        self,
+        receiver: str,
+        amount: int,
+        note: Optional[str] = None,
+        max_retries: int = 3,
+    ) -> str:
+        """
+        Create, sign, and send an Algorand USDC asset transfer transaction.
+
+        Returns:
+            Transaction ID of the sent payment
+        """
+        params = self.get_params()
+
+        for attempt in range(max_retries):
+            try:
+                params = self.get_params()
+
+                txn = transaction.AssetTransferTxn(
+                    sender=self.address,
+                    receiver=receiver,
+                    amt=amount,
+                    index=self.usdc_asset_id,
+                    note=note.encode() if note else b"",
+                    **params,
+                )
+
+                signed = txn.sign(self.secret_key)
+                txid = self.algod.send_transaction(signed)
+
+                self._wait_for_confirmation(txid)
+
+                logger.info(f"USDC payment sent successfully: txid={txid}")
+                return txid
+
+            except Exception as e:
+                logger.warning(f"USDC payment attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2**attempt)
+                else:
+                    raise
+
+        raise RuntimeError(f"Failed to send USDC payment after {max_retries} attempts")
 
     def _wait_for_confirmation(self, txid: str, timeout: int = 10) -> dict:
         """Wait for transaction confirmation."""
@@ -159,8 +207,9 @@ class RecruiterAgent:
         self,
         private_key_b64: str,
         verifier_url: str = VERIFIER_URL,
+        usdc_asset_id: Optional[int] = None,
     ):
-        self.signer = AlgorandSigner(private_key_b64)
+        self.signer = AlgorandSigner(private_key_b64, usdc_asset_id=usdc_asset_id)
         self.verifier_url = verifier_url.rstrip("/")
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -211,11 +260,11 @@ class RecruiterAgent:
                 if response.status_code == 402:
                     payment_req = self._extract_payment_requirements(response)
                     logger.info(
-                        f"Payment required: {payment_req.amount} microAlgos to "
+                        f"Payment required: {payment_req.amount} microUSDC to "
                         f"{payment_req.receiver}"
                     )
 
-                    txid = self.signer.sign_and_send_payment(
+                    txid = self.signer.send_usdc_payment(
                         receiver=payment_req.receiver,
                         amount=payment_req.amount,
                         note=f"TrustAnchor verification for {user_id}",

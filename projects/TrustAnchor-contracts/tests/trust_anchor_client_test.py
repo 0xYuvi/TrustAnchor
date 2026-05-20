@@ -36,20 +36,27 @@ def trust_anchor_client(
     return client
 
 
-def test_says_hello(trust_anchor_client: TrustAnchorClient) -> None:
-    result = trust_anchor_client.send.hello(args=("World",))
-    assert result.abi_return == "Hello, World"
+def test_register_and_get_commitment(trust_anchor_client: TrustAnchorClient) -> None:
+    trait_id = b"user_trait_1"
+    commitment = b"commitment_data_123"
 
-
-def test_simulate_says_hello_with_correct_budget_consumed(
-    trust_anchor_client: TrustAnchorClient,
-) -> None:
-    result = (
-        trust_anchor_client.new_group()
-        .hello(args=("World",))
-        .hello(args=("Jane",))
-        .simulate()
+    register_result = trust_anchor_client.send.register_anchor(
+        args=(trait_id, commitment)
     )
-    assert result.returns[0].value == "Hello, World"
-    assert result.returns[1].value == "Hello, Jane"
-    assert result.simulate_response["txn-groups"][0]["app-budget-consumed"] < 100
+    assert register_result.abi_return is True
+
+    get_result = trust_anchor_client.send.get_commitment(
+        args=(trait_id,)
+    )
+    assert get_result.abi_return == commitment
+
+
+def test_verify(trust_anchor_client: TrustAnchorClient) -> None:
+    threshold = 50000
+    proof_data = b"dummy_proof"
+
+    verify_result = trust_anchor_client.send.verify(
+        args=(threshold, proof_data)
+    )
+    assert verify_result.abi_return is True
+

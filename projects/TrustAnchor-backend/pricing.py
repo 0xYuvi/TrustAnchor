@@ -22,18 +22,25 @@ class VerificationMode(str, Enum):
     ZKP = "zkp"
 
 
+class PricingTier(int, Enum):
+    BOOLEAN_COST = 10_000          # $0.01
+    ZKP_COST = 100_000            # $0.10
+    SUBSCRIPTION_MONTHLY = 10_000_000  # $10.00
+    ONBOARDING_FEE = 2_000_000    # $2.00
+
+
 PRICE_MAP: dict[VerificationMode, int] = {
-    VerificationMode.BOOLEAN: 10_000,  # $0.01 USDC
-    VerificationMode.ZKP: 100_000,  # $0.10 USDC
+    VerificationMode.BOOLEAN: PricingTier.BOOLEAN_COST,
+    VerificationMode.ZKP: PricingTier.ZKP_COST,
 }
 
-SUBSCRIPTION_MONTHLY_COST = 10_000_000  # $10 USDC
+SUBSCRIPTION_MONTHLY_COST = PricingTier.SUBSCRIPTION_MONTHLY
 SUBSCRIPTION_MONTHLY_QUOTA = 1_000  # 1,000 verifications/month
 
-ONBOARDING_FEE = 2_000_000  # $2 USDC
+ONBOARDING_FEE = PricingTier.ONBOARDING_FEE
 
 USDC_MAINNET_ASSET_ID = 31566704
-USDC_TESTNET_ASSET_ID = 10419441
+USDC_TESTNET_ASSET_ID = 10458941
 
 
 def get_price(mode: Literal["boolean", "zkp"]) -> int:

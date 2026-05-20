@@ -2,6 +2,8 @@ from collections.abc import Iterator
 
 import pytest
 from algopy_testing import AlgopyTestContext, algopy_testing_context
+from algopy.arc4 import DynamicBytes, Bool
+from algopy import UInt64, Bytes
 
 from smart_contracts.trust_anchor.contract import TrustAnchor
 
@@ -12,13 +14,30 @@ def context() -> Iterator[AlgopyTestContext]:
         yield ctx
 
 
-def test_hello(context: AlgopyTestContext) -> None:
+def test_register_and_get_commitment(context: AlgopyTestContext) -> None:
     # Arrange
-    dummy_input = context.any.string(length=10)
     contract = TrustAnchor()
+    trait_id = DynamicBytes(b"user_trait_1")
+    commitment = DynamicBytes(b"commitment_data_123")
 
     # Act
-    output = contract.hello(dummy_input)
+    register_result = contract.register_anchor(trait_id, commitment)
+    retrieved_commitment = contract.get_commitment(trait_id)
 
     # Assert
-    assert output == f"Hello, {dummy_input}"
+    assert register_result == Bool(True)
+    assert retrieved_commitment == commitment
+
+
+def test_verify(context: AlgopyTestContext) -> None:
+    # Arrange
+    contract = TrustAnchor()
+    threshold = UInt64(50000)
+    proof_data = Bytes(b"dummy_proof")
+
+    # Act
+    verify_result = contract.verify(threshold, proof_data)
+
+    # Assert
+    assert verify_result == Bool(True)
+

@@ -2,8 +2,8 @@ import { AlgoViteClientConfig, AlgoViteKMDConfig } from '../../interfaces/networ
 
 export const USDC_ASSET_IDS: Record<string, number> = {
   mainnet: 31566704,
-  testnet: 10419441,
-  localnet: 10419441,
+  testnet: 10458941,
+  localnet: 10458941,
 }
 
 export function getUsdcAssetId(): number {
