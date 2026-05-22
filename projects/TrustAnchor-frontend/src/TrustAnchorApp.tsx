@@ -115,8 +115,13 @@ const TrustAnchorApp: React.FC = () => {
             suggestedParams: params,
           })
           addLog('[INST] Waiting for wallet signature...')
-          const signedTxsRaw = await signTransactions([txn.toByte()])
+          addLog(`[INST] sender=${activeAddress} receiver=${payTo} amount=${amount} asset=${assetId}`)
+          const signPromise = signTransactions([txn.toByte()])
+          const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Wallet did not respond within 60s')), 60_000))
+          const signedTxsRaw = await Promise.race([signPromise, timeout]) as (Uint8Array | null)[]
+          console.debug('[TRUSTANCHOR] Raw signing result:', signedTxsRaw, 'length:', signedTxsRaw?.length)
           const signedTxs = signedTxsRaw.filter((tx): tx is Uint8Array => tx !== null)
+          console.debug('[TRUSTANCHOR] After null filter:', signedTxs, 'length:', signedTxs?.length)
           const tx = signedTxs[0]
           if (!tx) throw new Error('Signing was cancelled or failed')
           const txResult = (await algodClient.sendRawTransaction([tx]).do()) as any
@@ -172,7 +177,8 @@ const TrustAnchorApp: React.FC = () => {
     setLoading(true)
     setError('')
     setLogs([])
-    addLog(`[INST] Requesting ${instMode} verification of ${instTargetUser.slice(0, 8)}...`)
+          const targetUser = instTargetUser.replace(/^\s*\ufeff\s*|\s+$/g, '')
+          addLog(`[INST] Requesting ${instMode} verification of ${targetUser.slice(0, 8)}...`)
     try {
       const res = await fetch(`${BACKEND_URL}/verify/request`, {
         method: 'POST',
@@ -181,7 +187,7 @@ const TrustAnchorApp: React.FC = () => {
           'Authorization': `Bearer ${institution.api_key}`,
         },
         body: JSON.stringify({
-          user_address: instTargetUser,
+          user_id: targetUser,
           mode: instMode,
           threshold: instThreshold,
         }),

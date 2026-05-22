@@ -238,6 +238,7 @@ app = FastAPI(
 )
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -246,6 +247,12 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X402-Payment-Required"],
 )
+
+
+@app.exception_handler(Exception)
+async def catch_all_exception_handler(request, exc):
+    logger.error(f"Unhandled error: {exc}", exc_info=True)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 # =============================================================================
@@ -357,7 +364,6 @@ async def register_institution(request: InstitutionRegisterRequest):
     verification = await payment_verifier.verify_payment(
         txid=request.onboarding_txid,
         expected_amount=ONBOARDING_FEE,
-        expected_asset_id=USDC_ASSET_ID,
     )
     if not verification.valid:
         raise HTTPException(status_code=400, detail=verification.error)
@@ -422,7 +428,6 @@ async def subscribe_monthly(
     verification = await payment_verifier.verify_payment(
         txid=payment_txid,
         expected_amount=SUBSCRIPTION_MONTHLY_COST,
-        expected_asset_id=USDC_ASSET_ID,
     )
     if not verification.valid:
         raise HTTPException(status_code=400, detail=verification.error)
@@ -454,6 +459,7 @@ async def create_verification_request(
     Institution must have quota remaining (pre-paid via onboarding or subscription).
     Returns request_id for the user to approve.
     """
+    request.user_id = request.user_id.strip().lstrip('\ufeff').strip()
     if not subscription_tracker.consume(institution_id):
         raise HTTPException(
             status_code=402,

@@ -174,3 +174,7 @@ node_modules
 
 # Hackathon Showcase
 SHOWCASE.md
+
+# Internal docs (not for GitHub)
+SETUP.md
+TASKS.md
